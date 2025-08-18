@@ -1,0 +1,35 @@
+Logging to: /home/jj/Documents/hoda_Colab/spirit_commandline/data/2025_08_18_T_11_26_52/logs/pipeline.log
+SPIRIT version: v1.0.0
+Run directory:  /home/jj/Documents/hoda_Colab/spirit_commandline/data/2025_08_18_T_11_26_52
+Tool versions (where available):
+Rscript (R) version 4.4.1 (2024-06-14)
+bedtools v2.31.1
+IntaRNA 3.4.1
+# esl-shuffle :: shuffling or generating random sequences
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.0.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Warning messages:
+1: package ‘purrr’ was built under R version 4.4.2 
+2: package ‘lubridate’ was built under R version 4.4.2 
+Warning message:
+package ‘readxl’ was built under R version 4.4.3 
+Rows: 5246 Columns: 13
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (4): genome, type, strand, gene
+dbl (8): start, end, p_value, ms2-pint_spi-1_vs_pint_spi-1_log2foldchange, m...
+lgl (1): ms2-pint_spi-1_vs_pint_spi-1_pvalue
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+Error: Columns 'p_value' and locus_tag are not present in: data/default/MAPS_test.csv
+Execution halted
+An error occurred. See log: /home/jj/Documents/hoda_Colab/spirit_commandline/data/2025_08_18_T_11_26_52/logs/pipeline.log

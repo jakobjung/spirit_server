@@ -1,0 +1,11 @@
+SPIRIT version: v1.0.0
+Date (UTC): 2025-08-18T10:16:37Z
+FASTA: ../SPIRIT/data/jakob/Btheta/B_theta_genome_and_plasmid.fa
+GFF: ../SPIRIT/data/jakob/Btheta/B_theta_annotation_210224.gff
+sRNA: ../SPIRIT/data/jakob/Btheta/MasB.fasta
+CSV files:
+  - ../SPIRIT/data/jakob/Btheta/MAPS_BTnc201.csv
+  - ../SPIRIT/data/b_theta_rnaseq_WT_vs_del_MasB.csv
+ID column: locus_tag
+Weights: none
+Run dir: /home/jj/Documents/hoda_Colab/spirit_commandline/data/2025_08_18_T_12_16_37
