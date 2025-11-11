@@ -21,5 +21,7 @@
 *.pdf
 *.fasta
 ./data/*
-.data/**
+./data/**
+./shiny_bookmarks/**
+./shiny_bookmarks/*
 
