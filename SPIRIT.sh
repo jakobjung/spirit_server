@@ -137,6 +137,9 @@ echo "Tool versions (where available):"
   echo "Run dir: $RUN_DIR"
 } > "${RUN_DIR}/run_manifest.txt"
 
+
+# --- check if input files are the default ones. if so, copy them to the run directory ---
+
 # --- Validate FASTA quickly ---
 if ! py_fasta_validator -f "$fasta"; then
   echo "ERROR: Invalid FASTA file '$fasta'"
