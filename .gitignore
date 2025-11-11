@@ -21,4 +21,5 @@
 *.pdf
 *.fasta
 ./data/*
+.data/**
 
