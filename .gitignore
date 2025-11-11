@@ -20,10 +20,10 @@
 *.svg
 *.pdf
 *.fasta
-./data/*
-./data/**
-./shiny_bookmarks/**
-./shiny_bookmarks/*
+data/*
+data/**
+shiny_bookmarks/**
+shiny_bookmarks/*
 data/jobs/**
 
 
