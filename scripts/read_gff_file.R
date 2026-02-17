@@ -37,8 +37,8 @@ combined_data_path <- file.path(timestamp, "data", "combined_data.tsv")
 gff_tags <- unique(c("Name", "locus_tag", "ID", "gene", "product", id))
 gff_cols <- c("seqid", "type", "start", "end", "strand")
 
-# Filter for these feature types
-gff_filter <- list(type = c("gene", "ncRNA", "sRNA"))
+# Load both gene and CDS (plus ncRNA/sRNA) — locus_tag may live on either type
+gff_filter <- list(type = c("gene", "CDS", "ncRNA", "sRNA"))
 
 # Load GFF
 gff <- readGFF(
@@ -53,12 +53,18 @@ gff <- readGFF(
 data_combined <- read_tsv(combined_data_path)
 
 # Create a 'gene_name' in GFF, falling back to 'locus_tag' if 'gene' is NA
-# gff <- gff %>%
-#   mutate(id = ifelse(is.na(id), locus_tag, id))
 gff[[id]] <- ifelse(is.na(gff[[id]]), gff$locus_tag, gff[[id]])
+
+# Drop rows where the id column is still NA (no usable identifier)
+gff <- gff %>% filter(!is.na(.data[[id]]))
 
 # create a id_lower column in gff
 gff[["id_lower"]] <- tolower(gff[[id]])
+
+# Deduplicate: if the same id appears on both gene and CDS, prefer CDS
+gff <- gff %>%
+  arrange(id_lower, factor(type, levels = c("CDS", "gene"))) %>%
+  filter(!duplicated(id_lower))
 
 
 # Inner-join on 'gene_name'
