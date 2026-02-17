@@ -17,6 +17,7 @@ library(readr)
 # import the csv file names from the bash Rscript call
 args <- commandArgs(trailingOnly = TRUE)
 
+
 # We expect at least one argument for the timestamp
 if (length(args) < 3) {
   stop("Usage: Rscript combine_tables.R <timestamp> <id> [file1 file2 file3 file4]")
