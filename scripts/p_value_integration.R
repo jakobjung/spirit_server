@@ -79,37 +79,32 @@ print(paste0("Number of p-values to be combined by Fisher's test': ", nr_pvals))
 # ok. now use the Fisher's test to combine the p-values"
 # create function for p-value integration using Fisher method
 combine_fishers_pvalue <- function(p_matrix, weights = NULL) {
-  # Check if input is a matrix
   if (!is.matrix(p_matrix)) stop("Input must be a matrix of p-values.")
 
-  # Initialize result vector
   combined_pvalues <- numeric(nrow(p_matrix))
 
-  # Loop through rows of the matrix
   for (i in 1:nrow(p_matrix)) {
     p_values <- p_matrix[i, ]
+    valid <- !is.na(p_values)
+    p_values <- p_values[valid]
 
-    # Remove NA values
-    p_values <- p_values[!is.na(p_values)]
+    # If no valid p-values, return NA
+    if (length(p_values) == 0) {
+      combined_pvalues[i] <- NA
+      next
+    }
 
-    # Apply weights if provided
     if (!is.null(weights)) {
-      if (length(weights) != length(p_values)) {
-        stop("Length of weights must match the number of p-values in each row.")
-      }
-      weighted_stat <- -2 * sum(weights * log(p_values))
+      w <- weights[valid]
+      weighted_stat <- -2 * sum(w * log(p_values))
     } else {
       weighted_stat <- -2 * sum(log(p_values))
     }
 
-    # Degrees of freedom
     df <- 2 * length(p_values)
-
-    # Calculate combined p-value
     combined_pvalues[i] <- pchisq(weighted_stat, df, lower.tail = FALSE)
   }
 
-  # Return combined p-values
   return(combined_pvalues)
 }
 
@@ -117,26 +112,24 @@ combine_fishers_pvalue <- function(p_matrix, weights = NULL) {
 # same with stouffer method
 # create function for p-value integration using Stouffer's method
 combine_stouffers_pvalue <- function(p_matrix, weights = NULL) {
-  # Check if input is a matrix
   if (!is.matrix(p_matrix)) stop("Input must be a matrix of p-values.")
 
-  # Initialize result vector
   combined_pvalues <- numeric(nrow(p_matrix))
 
-  # Loop through rows of the matrix
   for (i in 1:nrow(p_matrix)) {
     p_values <- p_matrix[i, ]
+    valid <- !is.na(p_values)
+    p_values <- p_values[valid]
 
-    # Remove NA values
-    p_values <- p_values[!is.na(p_values)]
+    if (length(p_values) == 0) {
+      combined_pvalues[i] <- NA
+      next
+    }
 
-    # Apply weights if provided
     if (!is.null(weights)) {
-      if (length(weights) != length(p_values)) {
-        stop("Length of weights must match the number of p-values in each row.")
-      }
+      w <- weights[valid]
       z_scores <- qnorm(1 - p_values)
-      weighted_z <- sum(weights * z_scores) / sqrt(sum(weights^2))
+      weighted_z <- sum(w * z_scores) / sqrt(sum(w^2))
       combined_pvalues[i] <- pnorm(weighted_z, lower.tail = FALSE)
     } else {
       z_scores <- qnorm(1 - p_values)
@@ -145,7 +138,6 @@ combine_stouffers_pvalue <- function(p_matrix, weights = NULL) {
     }
   }
 
-  # Return combined p-values
   return(combined_pvalues)
 }
 
@@ -155,7 +147,7 @@ raw_pvalues_merged <- data_only_pvals %>%
   select(-all_of(id)) %>%
   as.matrix()
 
-# find row with NAs in raw_pvalues_merged and make 1 of it in raw_pvalues_merged
+# Set NA p-values to 1 (non-significant: gene likely filtered out of dataset)
 raw_pvalues_merged[is.na(raw_pvalues_merged)] <- 1
 
 # Combine p-values using Fisher's method

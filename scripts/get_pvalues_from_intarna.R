@@ -148,7 +148,7 @@ data_combined <- full_join(data_combined, original_data, by = id) %>%
     IntaRNA_p_value = ifelse(is.na(IntaRNA_p_value), 1, IntaRNA_p_value)
   )
 
-# add for all NA p-values a 1. p-value colums end with p_value
+# Set all remaining NA p-values to 1 (non-significant: gene likely filtered out)
 data_combined <- data_combined %>%
   mutate(across(ends_with("p_value"), ~ ifelse(is.na(.), 1, .)))
 

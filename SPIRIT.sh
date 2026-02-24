@@ -37,6 +37,7 @@ Help()
   echo "  -w  Weights for Fisher's test, comma-separated"
   echo "  -i  Gene identifier column (default: 'locus_tag')"
   echo "  -o  Output root directory (default: './data')"
+  echo "  -t  Number of threads for IntaRNA (default: 0 = all available)"
   echo
   echo "Other:"
   echo "  -h  Print help"
@@ -56,7 +57,7 @@ SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ################################################################################
 # Process Flags                                                                #
 ################################################################################
-while getopts f:g:s:a:b:c:d:w:i:o:hV flag
+while getopts f:g:s:a:b:c:d:w:i:o:t:hV flag
 do
   case "${flag}" in
     f) fasta=${OPTARG};;
@@ -69,6 +70,7 @@ do
     w) weights=${OPTARG};;
     i) id=${OPTARG};;
     o) output_dir=${OPTARG};;
+    t) threads=${OPTARG};;
     h) Help; exit;;
     V) echo "$version"; exit;;
     *) echo "Invalid option: -$OPTARG" >&2; Help; exit 1;;
@@ -78,6 +80,7 @@ done
 # Defaults
 id="${id:-locus_tag}"
 output_dir="${output_dir:-./data}"
+threads="${threads:-0}"
 
 # --- Validate required inputs exist & are readable ---
 req_file() { [ -r "$1" ] || { echo "ERROR: cannot read $2: $1"; exit 1; }; }
@@ -170,12 +173,6 @@ bedtools getfasta -fi "$fasta" \
   -s -name+ \
   || { echo "bedtools getfasta failed. Check BED and FASTA."; exit 1; }
 
-# --- IntaRNA on real sequences ---
-echo "Running IntaRNA (real targets) ..."
-IntaRNA -q "$srna" -t "${RUN_DIR}/data/IntaRNA_file.fasta" \
-  --out "${RUN_DIR}/data/IntaRNA_output.csv" --outMode C
-echo "IntaRNA (real) done."
-
 # --- Shuffle: use record count, not line count ---
 records=$(grep -c '^>' "${RUN_DIR}/data/IntaRNA_file.fasta" || true)
 echo "Detected $records FASTA records for shuffling."
@@ -194,18 +191,30 @@ esl-shuffle -1 ${N:+-N "$N"} \
   -o "${RUN_DIR}/data/IntaRNA_file_shuffled.fasta" \
   "${RUN_DIR}/data/IntaRNA_file.fasta"
 
-# --- Subsample shuffled to 1000 entries (headers-based) ---
 seqtk sample -s100 "${RUN_DIR}/data/IntaRNA_file_shuffled.fasta" 1000 \
   > "${RUN_DIR}/data/IntaRNA_file_shuffled_1000.fasta"
 rm -f "${RUN_DIR}/data/IntaRNA_file_shuffled.fasta"
 echo "Shuffle + subsample done."
 
-# --- IntaRNA on shuffled sequences ---
-echo "Running IntaRNA (shuffled) ..."
+# --- Run both IntaRNA calls in parallel ---
+echo "Running IntaRNA (real + shuffled) with --threads=${threads} ..."
+
+IntaRNA -q "$srna" -t "${RUN_DIR}/data/IntaRNA_file.fasta" \
+  --out "${RUN_DIR}/data/IntaRNA_output.csv" --outMode C \
+  --threads "$threads" &
+pid_real=$!
+
 IntaRNA -q "$srna" -t "${RUN_DIR}/data/IntaRNA_file_shuffled_1000.fasta" \
-  --out "${RUN_DIR}/data/IntaRNA_shuffled_output.csv" --outMode C
+  --out "${RUN_DIR}/data/IntaRNA_shuffled_output.csv" --outMode C \
+  --threads "$threads" &
+pid_shuffled=$!
+
+# Wait for both and check exit codes
+wait "$pid_real"    || { echo "IntaRNA (real) failed."; exit 1; }
+wait "$pid_shuffled" || { echo "IntaRNA (shuffled) failed."; exit 1; }
+
 rm -f "${RUN_DIR}/data/IntaRNA_file_shuffled_1000.fasta"
-echo "IntaRNA (shuffled) done."
+echo "IntaRNA (real + shuffled) done."
 
 # --- Compute IntaRNA p-values & integrate ---
 Rscript "${SCRIPT_DIR}/scripts/get_pvalues_from_intarna.R" "$RUN_DIR" "$id"

@@ -67,8 +67,8 @@ gff <- gff %>%
   filter(!duplicated(id_lower))
 
 
-# Inner-join on 'gene_name'
-gff_upd <- inner_join(gff, data_combined, by = "id_lower")
+# Left-join: keep all GFF genes, even if missing from experiment tables
+gff_upd <- left_join(gff, data_combined, by = "id_lower")
 
 # now re-name id column to the original id ("id".x)
 gff_upd[[id]] <- gff_upd[[paste0(id, ".x")]]
