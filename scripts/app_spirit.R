@@ -715,6 +715,41 @@ server <- function(input, output, session) {
       }
     }
 
+    # ---------- FAST-PATH: precomputed B. theta + MasB + (MAPS & RNAseq), no uploads ----------
+    is_default_masb <- isTRUE(input$organismChoice == "btheta") &&
+                       isTRUE(input$srnaChoice == "masb") &&
+                       !is.null(input$defaultDatasets) &&
+                       setequal(input$defaultDatasets, c("maps","rnaseq")) &&
+                       is.null(input$fasta) && is.null(input$gff) && is.null(input$srna) &&
+                       is.null(input$csv1) && is.null(input$csv2) &&
+                       is.null(input$csv3) && is.null(input$csv4)
+
+    if (is_default_masb) {
+      pre_folder <- normalizePath(file.path(".", "data", "default_result_masB"), mustWork = FALSE)
+      finalTsv   <- file.path(pre_folder, "data", "combined_tables.tsv")
+
+      if (dir.exists(pre_folder) && file.exists(finalTsv)) {
+        rv$spiritFolder <- pre_folder
+        rv$finalData    <- readr::read_tsv(finalTsv, show_col_types = FALSE)
+        rv$status       <- sprintf("Loaded precomputed results: %s", pre_folder)
+
+        write_job(rv$runId, list(
+          status   = "done",
+          finished = as.character(Sys.time()),
+          outDir   = outDir,
+          folder   = pre_folder
+        ))
+
+        rv$done <- TRUE
+        rv$pipelineRunning <- FALSE
+        output$runStatus <- renderText(rv$status)
+        session$doBookmark()
+        return(invisible(NULL))
+      } else {
+        message("Precomputed folder not found or incomplete: ", pre_folder, " — falling back to full run.")
+      }
+    }
+
     # ------------------ NORMAL PATH: build inputs/paths and run SPIRIT.sh ------------------
     # FASTA/GFF
     if (identical(input$organismChoice, "btheta")) {
