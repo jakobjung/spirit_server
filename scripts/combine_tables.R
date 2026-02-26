@@ -88,8 +88,9 @@ if (length(data_list) > 1) {
       data_combined <- full_join(data_combined, data_list[[i]], by = "id_lower")
       # also remove nas in the id column
       data_combined <- data_combined %>% filter(!is.na(.[["id_lower"]]))
-    # keep only "id".x
-    data_combined[[id]] <- data_combined[[paste0(id, ".x")]]
+    # keep id from whichever table has it (first table preferred)
+    data_combined[[id]] <- coalesce(data_combined[[paste0(id, ".x")]],
+                                    data_combined[[paste0(id, ".y")]])
 
           # remove the ".x" and ".y" columns
         data_combined <- data_combined %>%

@@ -620,12 +620,21 @@ server <- function(input, output, session) {
       }
     }
 
-    # Prefer user uploads if present
+    # Add user uploads into the next available slot(s)
     inputDir3 <- if (exists("inputDir")) inputDir else tempdir()
-    if (!nzchar(csv1Path) && !is.null(input$csv1)) { csv1Path <- file.path(inputDir3, input$csv1$name); file.copy(input$csv1$datapath, csv1Path, overwrite = TRUE) }
-    if (!nzchar(csv2Path) && !is.null(input$csv2)) { csv2Path <- file.path(inputDir3, input$csv2$name); file.copy(input$csv2$datapath, csv2Path, overwrite = TRUE) }
-    if (!nzchar(csv3Path) && !is.null(input$csv3)) { csv3Path <- file.path(inputDir3, input$csv3$name); file.copy(input$csv3$datapath, csv3Path, overwrite = TRUE) }
-    if (!nzchar(csv4Path) && !is.null(input$csv4)) { csv4Path <- file.path(inputDir3, input$csv4$name); file.copy(input$csv4$datapath, csv4Path, overwrite = TRUE) }
+    csvPaths <- c(csv1Path, csv2Path, csv3Path, csv4Path)
+    userInputs <- list(input$csv1, input$csv2, input$csv3, input$csv4)
+    for (ui in userInputs) {
+      if (!is.null(ui)) {
+        idx <- which(!nzchar(csvPaths))[1]
+        if (!is.na(idx)) {
+          dest <- file.path(inputDir3, ui$name)
+          file.copy(ui$datapath, dest, overwrite = TRUE)
+          csvPaths[idx] <- dest
+        }
+      }
+    }
+    csv1Path <- csvPaths[1]; csv2Path <- csvPaths[2]; csv3Path <- csvPaths[3]; csv4Path <- csvPaths[4]
 
     # Require at least one dataset
     req(nzchar(csv1Path))
