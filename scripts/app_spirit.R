@@ -12,6 +12,7 @@ library(plotly)     # interactive plots
 library(promises)
 library(future)
 library(jsonlite)
+library(htmltools)
 
 options(shiny.maxRequestSize = 50 * 1024^2)
 
@@ -251,7 +252,8 @@ ui <- function(request) {
           div(
             style = "display:flex; gap:10px; flex-wrap:wrap;",
             downloadButton("dl_tsv",  "Download TSV (.tsv)"),
-            downloadButton("dl_xlsx", "Download Excel (.xlsx)")
+            downloadButton("dl_xlsx", "Download Excel (.xlsx)"),
+            downloadButton("dl_html", "Download Interactive Report (.html)")
           ),
           h4("Final Combined Table"),
           dataTableOutput("finalTable")
@@ -308,6 +310,141 @@ server <- function(input, output, session) {
         }
     )
 
+    output$dl_html <- downloadHandler(
+        filename = function() {
+            id <- rv$runId %||% format(Sys.time(), "%Y%m%dT%H%M%S")
+            paste0("SPIRIT_report_", id, ".html")
+        },
+        content = function(file) {
+            req(rv$finalData, input$xAxisCol, input$yAxisCol, input$geneHoverCol)
+            df <- rv$finalData
+            numericCols <- names(df)[sapply(df, is.numeric)]
+            allCols <- names(df)
+
+            # Build initial plotly figure (also bundles plotly.js dependency)
+            p <- ggplot(df, aes(x = -log10(.data[[input$xAxisCol]]),
+                                y = -log10(.data[[input$yAxisCol]]),
+                                text = .data[[input$geneHoverCol]])) +
+                geom_point(alpha = 0.5, colour = "steelblue") +
+                theme_bw() +
+                labs(
+                    title = paste("Scatter of", input$xAxisCol, "vs.", input$yAxisCol, "(both -log10)"),
+                    x = paste0("-log10(", input$xAxisCol, ")"),
+                    y = paste0("-log10(", input$yAxisCol, ")")
+                )
+            plot_widget <- ggplotly(p, tooltip = c("text", "x", "y"))
+
+            # Build the DT table (same as app)
+            table_widget <- DT::datatable(df, options = list(pageLength = 10))
+
+            # Embed full dataset as JSON for JS axis switching
+            data_json <- jsonlite::toJSON(
+                lapply(df, function(col) {
+                    if (is.numeric(col)) col else as.character(col)
+                }),
+                auto_unbox = FALSE
+            )
+
+            # Build dropdown options HTML
+            make_options <- function(choices, selected) {
+                paste(sapply(choices, function(ch) {
+                    sel <- if (identical(ch, selected)) ' selected' else ''
+                    sprintf('<option value="%s"%s>%s</option>', ch, sel, ch)
+                }), collapse = "\n")
+            }
+
+            controls_html <- sprintf('
+                <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+                    <label>X-axis: <select id="xAxisSelect">%s</select></label>
+                    <label>Y-axis: <select id="yAxisSelect">%s</select></label>
+                    <label>Hover text: <select id="hoverSelect">%s</select></label>
+                </div>',
+                make_options(numericCols, input$xAxisCol),
+                make_options(numericCols, input$yAxisCol),
+                make_options(allCols, input$geneHoverCol)
+            )
+
+            # JavaScript to re-plot on dropdown change
+            js_code <- '
+            <script id="spirit-data" type="application/json">%s</script>
+            <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                var data = JSON.parse(document.getElementById("spirit-data").textContent);
+                var plotEl = document.querySelector(".plotly.html-widget");
+                if (!plotEl) return;
+
+                var xSel = document.getElementById("xAxisSelect");
+                var ySel = document.getElementById("yAxisSelect");
+                var hSel = document.getElementById("hoverSelect");
+
+                function updatePlot() {
+                    var xCol = xSel.value;
+                    var yCol = ySel.value;
+                    var hCol = hSel.value;
+                    var xRaw = data[xCol];
+                    var yRaw = data[yCol];
+                    var hRaw = data[hCol];
+                    if (!xRaw || !yRaw) return;
+
+                    var x = xRaw.map(function(v) { return v > 0 ? -Math.log10(v) : 0; });
+                    var y = yRaw.map(function(v) { return v > 0 ? -Math.log10(v) : 0; });
+                    var text = hRaw ? hRaw.map(String) : x.map(function(_, i) { return String(i); });
+
+                    Plotly.react(plotEl, [{
+                        x: x, y: y, text: text,
+                        mode: "markers",
+                        type: "scatter",
+                        marker: { color: "steelblue", opacity: 0.5 },
+                        hovertemplate: "%%{text}<br>x: %%{x:.3f}<br>y: %%{y:.3f}<extra></extra>"
+                    }], {
+                        title: "Scatter of " + xCol + " vs. " + yCol + " (both -log10)",
+                        xaxis: { title: "-log10(" + xCol + ")" },
+                        yaxis: { title: "-log10(" + yCol + ")" }
+                    });
+                }
+
+                xSel.addEventListener("change", updatePlot);
+                ySel.addEventListener("change", updatePlot);
+                hSel.addEventListener("change", updatePlot);
+            });
+            </script>'
+            js_code <- sprintf(js_code, data_json)
+
+            # Combine into one page
+            html <- htmltools::tagList(
+                tags$style(HTML("
+                    body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+                    .header { background-color: #002864; color: white; padding: 20px; text-align: center;
+                              font-size: 22px; font-weight: bold; border-radius: 6px; margin-bottom: 24px; }
+                    h3 { margin-top: 30px; }
+                    label { font-weight: 600; }
+                    select { padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; }
+                ")),
+                div(class = "header", "SPIRIT - Results Report"),
+                h3("Interactive Plot"),
+                HTML(controls_html),
+                plot_widget,
+                HTML(js_code),
+                h3("Results Table"),
+                table_widget
+            )
+
+            # Save to temp dir with dependencies in a lib folder
+            tmp_dir <- file.path(tempdir(), paste0("spirit_report_", Sys.getpid()))
+            on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
+            dir.create(tmp_dir, showWarnings = FALSE, recursive = TRUE)
+            tmp_html <- file.path(tmp_dir, "report.html")
+            lib_dir <- file.path(tmp_dir, "lib")
+            htmltools::save_html(html, file = tmp_html, libdir = lib_dir)
+
+            # Make self-contained (inline all JS/CSS) using pandoc
+            if (requireNamespace("rmarkdown", quietly = TRUE) && rmarkdown::pandoc_available()) {
+                rmarkdown::pandoc_self_contained_html(tmp_html, file)
+            } else {
+                file.copy(tmp_html, file, overwrite = TRUE)
+            }
+        }
+    )
 
 
 
