@@ -1,7 +1,7 @@
 # SPIRIT
 
 <p align="center">
-  <img src="scripts/www/spirit_logo.png" width="50%">
+  <img src="scripts/www/spirit_logo_2.png" width="50%">
 </p>
 
 **Swift P-value Integration of Regulatory Interaction Targets**
