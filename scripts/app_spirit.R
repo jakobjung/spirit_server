@@ -86,6 +86,8 @@ ui <- function(request) {
           }
           .navbar-default .navbar-nav > li > a {
             color: #ffffff !important; font-weight: 600;
+            font-size: 18px !important;
+            text-transform: none !important;
           }
           .navbar-default .navbar-nav > li > a:hover,
           .navbar-default .navbar-nav > li > a:focus {
@@ -149,6 +151,15 @@ ui <- function(request) {
           .running-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; }
           .running-text { color: #c62828; font-weight: 800; text-align: center; font-size: clamp(26px, 4vw, 42px); line-height: 1.25; padding: 0 24px; }
 
+          /* Delete-result button (red cross, upper right) */
+          .delete-result-btn {
+            position: absolute; top: 10px; right: 15px; z-index: 100;
+            background: transparent; border: none; cursor: pointer;
+            color: #c62828; font-size: 26px; line-height: 1; padding: 4px 8px;
+            border-radius: 4px; transition: background 0.15s;
+          }
+          .delete-result-btn:hover { background: rgba(198,40,40,0.1); }
+
           /* Help & Contact page styling */
           .help-container, .contact-container {
             max-width: 860px; margin: 30px auto; padding: 0 20px;
@@ -161,6 +172,9 @@ ui <- function(request) {
         tags$script(HTML("
           window.addEventListener('popstate', function(e) {
             Shiny.setInputValue('browserBack', Math.random());
+          });
+          $(document).on('click', '.navbar-nav > li > a[data-value=\"SPIRIT\"]', function() {
+            Shiny.setInputValue('spiritTabClick', Math.random());
           });
         "))
       )
@@ -275,11 +289,11 @@ ui <- function(request) {
           div(class = "intro-card",
               tags$img(src = "spiritres/spirit_logo_2.png", class = "intro-logo", alt = "SPIRIT logo"),
               div(class = "intro-title", "SPIRIT"),
-              div(class = "intro-sub", "Swift P-value Integration for sRNA Interaction Targets"),
+              div(class = "intro-sub", HTML("<b>S</b>wift <b>P</b>-value <b>I</b>ntegration for s<b>R</b>NA <b>I</b>nteraction <b>T</b>argets")),
               tags$div(
                 class = "intro-list",
                 tags$ul(
-                  tags$li("Predicts sRNA–mRNA and sRNA–sRNA interactions."),
+                  tags$li("Predicts sRNA-mRNA and sRNA-sRNA interactions."),
                   tags$li("Combines multiple evidence sources via (weighted) Fisher’s method."),
                   tags$li("Parses FASTA/GFF and experiment tables, outputs an integrated result table and plots.")
                 )
@@ -312,6 +326,14 @@ ui <- function(request) {
         # Results area
         conditionalPanel(
           condition = "!output.pipelineRunning && output.showResults",
+          div(style = "position: relative;",
+            actionButton("deleteResultBtn", label = NULL,
+                         icon = icon("xmark"),
+                         class = "delete-result-btn",
+                         title = "Delete this result and go back"),
+          ),
+          div(style = "background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px 14px; margin-bottom: 12px; color: #664d03;",
+              tags$b("Note:"), " Results will be deleted after 30 days."),
           textOutput("runStatus"),
           tags$hr(),
           h4("Shareable link to this result"),
@@ -319,6 +341,13 @@ ui <- function(request) {
           tags$hr(),
           h4("Result Plots"),
           plotlyOutput("plotResult"),
+        )
+      )
+    ),
+    # Full-width download + table below the sidebarLayout
+    conditionalPanel(
+      condition = "!output.pipelineRunning && output.showResults",
+      div(style = "padding: 0 15px;",
           tags$hr(),
           h4("Download results"),
           div(
@@ -329,7 +358,6 @@ ui <- function(request) {
           ),
           h4("Final Combined Table"),
           dataTableOutput("finalTable")
-        )
       )
     )
     ),
@@ -409,6 +437,20 @@ ui <- function(request) {
 }
 
 server <- function(input, output, session) {
+  # Clean up result folders older than 30 days (only timestamped folders starting with "20")
+  data_root <- file.path(getwd(), "data")
+  if (dir.exists(data_root)) {
+    all_dirs <- list.dirs(data_root, full.names = TRUE, recursive = FALSE)
+    for (d in all_dirs) {
+      dname <- basename(d)
+      if (!grepl("^20", dname)) next
+      age_days <- as.numeric(difftime(Sys.time(), file.info(d)$mtime, units = "days"))
+      if (!is.na(age_days) && age_days > 30) {
+        unlink(d, recursive = TRUE)
+      }
+    }
+  }
+
   rv <- reactiveValues(
     status           = "",
     finalData        = NULL,
@@ -869,7 +911,7 @@ server <- function(input, output, session) {
         return(invisible(NULL))
       } else {
         # fall back to full run if folder/file missing
-        message("Precomputed folder not found or incomplete: ", pre_folder, " — falling back to full run.")
+        message("Precomputed folder not found or incomplete: ", pre_folder, " - falling back to full run.")
       }
     }
 
@@ -904,7 +946,7 @@ server <- function(input, output, session) {
         session$doBookmark()
         return(invisible(NULL))
       } else {
-        message("Precomputed folder not found or incomplete: ", pre_folder, " — falling back to full run.")
+        message("Precomputed folder not found or incomplete: ", pre_folder, " - falling back to full run.")
       }
     }
 
@@ -1101,12 +1143,69 @@ server <- function(input, output, session) {
 
   observeEvent(input$cancelBtn, { cancel_pipeline() })
   observeEvent(input$browserBack, { cancel_pipeline() })
+
+  # Delete result: confirm, remove folder, and reset to start
+  observeEvent(input$deleteResultBtn, {
+    showModal(modalDialog(
+      title = "Delete this result?",
+      "This will permanently delete the result folder. This cannot be undone.",
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("confirmDeleteResult", "Delete",
+                     style = "background-color: #c62828 !important; border-color: #c62828 !important; color: #fff !important;")
+      )
+    ))
+  })
+  observeEvent(input$confirmDeleteResult, {
+    removeModal()
+    folder <- rv$spiritFolder
+    if (!is.null(folder) && dir.exists(folder)) {
+      unlink(folder, recursive = TRUE)
+    }
+    # Remove the job JSON if it exists
+    if (!is.null(rv$runId)) {
+      jf <- file.path(jobs_dir, paste0(rv$runId, ".json"))
+      if (file.exists(jf)) unlink(jf)
+    }
+    # Reset to start
+    rv$done <- FALSE
+    rv$finalData <- NULL
+    rv$spiritFolder <- NULL
+    rv$runId <- NULL
+    rv$status <- ""
+    output$runStatus <- renderText("")
+    shinyjs::show("sidebarPanelID")
+    updateQueryString("?", mode = "replace")
+  })
+  reset_to_start <- function() {
+    rv$done <- FALSE
+    rv$finalData <- NULL
+    rv$spiritFolder <- NULL
+    rv$runId <- NULL
+    rv$status <- ""
+    output$runStatus <- renderText("")
+    shinyjs::show("sidebarPanelID")
+    updateQueryString("?", mode = "replace")
+  }
+
   observeEvent(input$mainNav, {
-    if (identical(input$mainNav, "SPIRIT") && rv$pipelineRunning) {
-      cancel_pipeline()
+    if (identical(input$mainNav, "SPIRIT")) {
+      if (rv$pipelineRunning) {
+        cancel_pipeline()
+      } else if (rv$done) {
+        reset_to_start()
+      }
     }
   }, ignoreInit = TRUE)
 
+  # Handle clicking "SPIRIT" tab when already on it (Shiny doesn't fire mainNav in that case)
+  observeEvent(input$spiritTabClick, {
+    if (rv$pipelineRunning) {
+      cancel_pipeline()
+    } else if (rv$done) {
+      reset_to_start()
+    }
+  }, ignoreInit = TRUE)
 
   # Populate plot option dropdowns after pipeline finishes
   observeEvent(rv$done, {
@@ -1127,7 +1226,15 @@ server <- function(input, output, session) {
   # Final table & plot
   output$finalTable <- renderDataTable({
     req(rv$done, rv$finalData)
-    datatable(rv$finalData, options = list(pageLength = 10))
+    df <- rv$finalData
+    num_cols <- sapply(df, is.numeric)
+    df[num_cols] <- lapply(df[num_cols], function(x) {
+      ifelse(is.na(x), NA_character_,
+        ifelse(x != 0 & abs(x) < 0.001,
+               formatC(x, format = "e", digits = 2),
+               as.character(round(x, 3))))
+    })
+    datatable(df, options = list(pageLength = 10))
   })
 
   output$plotResult <- renderPlotly({

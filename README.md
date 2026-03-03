@@ -14,7 +14,7 @@ SPIRIT can be run rom the command line or from an RShiny webserver.
 
 Given an sRNA of interest and one or more experimental datasets (e.g. RNA-seq, MAPS), SPIRIT:
 
-1. Predicts sRNA–mRNA interactions using IntaRNA
+1. Predicts sRNA-mRNA interactions using IntaRNA
 2. Estimates interaction significance by fitting a Gumbel distribution to shuffled-sequence controls
 3. Combines IntaRNA p-values with experimental p-values via Fisher's and Stouffer's methods
 4. Applies FDR correction and produces ranked target lists with diagnostic plots
@@ -35,7 +35,7 @@ Rscript scripts/app_spirit.R
 # Open http://localhost:3838 in your browser
 ```
 
-> **Note:** The bundled default datasets (Salmonella SL1344, B. thetaiotaomicron) are not included in the repository due to file size. Without them, the pre-loaded organism options in the web interface will not work — upload your own data instead.
+> **Note:** The bundled default datasets (Salmonella SL1344, B. thetaiotaomicron) are not included in the repository due to file size. Without them, the pre-loaded organism options in the web interface will not work - upload your own data instead.
 
 ## Installation
 
@@ -104,13 +104,13 @@ sh SPIRIT.sh -f <genome.fasta> -g <genome.gff> -s <srna.fasta> -a <experiment.cs
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-b`, `-c`, `-d` | Additional CSV/XLSX experiment files | — |
+| `-b`, `-c`, `-d` | Additional CSV/XLSX experiment files | - |
 | `-w` | Weights for Fisher's test (comma-separated) | equal |
 | `-i` | Gene identifier column name | `locus_tag` |
 | `-o` | Output root directory | `./data` |
 | `-t` | Number of IntaRNA threads (0 = all) | `0` |
-| `-h` | Print help | — |
-| `-V` | Print version | — |
+| `-h` | Print help | - |
+| `-V` | Print version | - |
 
 ### Examples
 
@@ -138,18 +138,18 @@ sh SPIRIT.sh \
 Rscript scripts/app_spirit.R
 ```
 
-> **Important:** Always run from the project root directory — the app uses relative paths (`./data`, `./SPIRIT.sh`).
+> **Important:** Always run from the project root directory - the app uses relative paths (`./data`, `./SPIRIT.sh`).
 
 
 ## Pipeline steps
 
-1. **Input validation** — checks FASTA integrity and CSV column requirements
-2. **Table merging** — inner-joins experiment tables on the gene ID column
-3. **GFF parsing** — extracts CDS/gene features, creates a BED file with ±50 bp flanking regions
-4. **Sequence extraction** — `bedtools getfasta` extracts target sequences
-5. **IntaRNA prediction** — runs IntaRNA on real and shuffled sequences in parallel
-6. **P-value estimation** — fits a Gumbel distribution to shuffled MFEs to derive IntaRNA p-values
-7. **Meta-analysis** — integrates all p-values with Fisher's and Stouffer's methods, applies BH-FDR correction
+1. **Input validation** - checks FASTA integrity and CSV column requirements
+2. **Table merging** - inner-joins experiment tables on the gene ID column
+3. **GFF parsing** - extracts CDS/gene features, creates a BED file with ±50 bp flanking regions
+4. **Sequence extraction** - `bedtools getfasta` extracts target sequences
+5. **IntaRNA prediction** - runs IntaRNA on real and shuffled sequences in parallel
+6. **P-value estimation** - fits a Gumbel distribution to shuffled MFEs to derive IntaRNA p-values
+7. **Meta-analysis** - integrates all p-values with Fisher's and Stouffer's methods, applies BH-FDR correction
 
 ## Output
 
