@@ -1226,15 +1226,7 @@ server <- function(input, output, session) {
   # Final table & plot
   output$finalTable <- renderDataTable({
     req(rv$done, rv$finalData)
-    df <- rv$finalData
-    num_cols <- sapply(df, is.numeric)
-    df[num_cols] <- lapply(df[num_cols], function(x) {
-      ifelse(is.na(x), NA_character_,
-        ifelse(x != 0 & abs(x) < 0.001,
-               formatC(x, format = "e", digits = 2),
-               as.character(round(x, 3))))
-    })
-    datatable(df, options = list(pageLength = 10))
+    datatable(rv$finalData, options = list(pageLength = 10))
   })
 
   output$plotResult <- renderPlotly({
