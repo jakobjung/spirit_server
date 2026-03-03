@@ -8,6 +8,8 @@
 
 SPIRIT (**S**wift **P**-value **I**ntegration of **R**egulatory **I**nteraction **T**argets) is a bioinformatics pipeline that predicts sRNA-mRNA and sRNA-sRNA  regulatory interactions in bacteria. It integrates [IntaRNA](https://github.com/BackofenLab/IntaRNA) sequence-based predictions with experimental p-values using Fisher's and Stouffer's meta-analysis methods to rank target genes.
 
+SPIRIT can be run rom the command line or from an RShiny webserver.
+
 ## Overview
 
 Given an sRNA of interest and one or more experimental datasets (e.g. RNA-seq, MAPS), SPIRIT:
@@ -166,8 +168,8 @@ data/<timestamp>/
 
 Pre-loaded organisms in `data/default/`:
 
-- **Salmonella enterica SL1344** + sRNA PinT including pulse expression ([Westermann et al. 2016](https://www.nature.com/articles/nature16547)) and MAPS ([Santos et al. 2021](https://pubmed.ncbi.nlm.nih.gov/33535041/)) datasets
-- **Bacteroides thetaiotaomicron** + sRNA MasB including pulse expression and MAPS ([Ryan et al. 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC10994844/)) datasets
+- **_Salmonella enterica_ serovar Typhimurium SL1344** + sRNA PinT including pulse expression ([Westermann et al. 2016](https://www.nature.com/articles/nature16547)) and MAPS ([Santos et al. 2021](https://pubmed.ncbi.nlm.nih.gov/33535041/)) datasets
+- **_Bacteroides thetaiotaomicron_ VPI-5482** + sRNA MasB including pulse expression and MAPS ([Ryan et al. 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC10994844/)) datasets
 
 ## Authors
 
