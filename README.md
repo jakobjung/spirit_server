@@ -1,5 +1,9 @@
 # SPIRIT
 
+<p align="center">
+  <img src="scripts/www/spirit_logo.png" width="50%">
+</p>
+
 **Swift P-value Integration of Regulatory Interaction Targets**
 
 SPIRIT is a bioinformatics pipeline that predicts sRNA–mRNA regulatory interactions. It integrates [IntaRNA](https://github.com/BackofenLab/IntaRNA) sequence-based interaction predictions with experimental p-values using Fisher's and Stouffer's meta-analysis methods to rank target genes.
@@ -13,6 +17,24 @@ Given an sRNA of interest and one or more experimental datasets (e.g. RNA-seq, M
 3. Combines IntaRNA p-values with experimental p-values via Fisher's and Stouffer's methods
 4. Applies FDR correction and produces ranked target lists with diagnostic plots
 
+## Quick start
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/jakobjung/spirit_server.git
+cd spirit_server
+
+# 2. Create and activate the conda environment
+conda env create -f SPIRIT.yml
+conda activate spirit
+
+# 3. Run the web interface
+Rscript scripts/app_spirit.R
+# Open http://localhost:3838 in your browser
+```
+
+> **Note:** The bundled default datasets (Salmonella SL1344, B. thetaiotaomicron) are not included in the repository due to file size. Without them, the pre-loaded organism options in the web interface will not work — upload your own data instead.
+
 ## Installation
 
 ### Conda (recommended)
@@ -20,10 +42,7 @@ Given an sRNA of interest and one or more experimental datasets (e.g. RNA-seq, M
 All dependencies (external tools, R, and R packages) are bundled in the provided conda environment file.
 
 ```bash
-# Create the environment from the exported file
 conda env create -f SPIRIT.yml
-
-# Activate it
 conda activate spirit
 ```
 
@@ -119,29 +138,6 @@ Rscript scripts/app_spirit.R
 
 > **Important:** Always run from the project root directory — the app uses relative paths (`./data`, `./SPIRIT.sh`).
 
-### Deploying on a server
-
-1. Clone the repository and set up the conda environment (see [Installation](#installation))
-2. Make sure to run the app from the project root:
-
-```bash
-cd /path/to/spirit_commandline
-conda activate spirit
-Rscript scripts/app_spirit.R
-```
-
-3. The app listens on **port 3838** by default. Ensure this port is open in your firewall.
-4. If running behind a reverse proxy (e.g. nginx), enable WebSocket support:
-
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:3838;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-}
-```
 
 ## Pipeline steps
 
