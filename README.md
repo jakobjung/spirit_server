@@ -4,9 +4,9 @@
   <img src="scripts/www/spirit_logo_2.png" width="50%">
 </p>
 
-**Swift P-value Integration of Regulatory Interaction Targets**
 
-SPIRIT is a bioinformatics pipeline that predicts sRNA–mRNA regulatory interactions. It integrates [IntaRNA](https://github.com/BackofenLab/IntaRNA) sequence-based interaction predictions with experimental p-values using Fisher's and Stouffer's meta-analysis methods to rank target genes.
+
+SPIRIT (**S**wift **P**-value **I**ntegration of **R**egulatory **I**nteraction **T**argets) is a bioinformatics pipeline that predicts sRNA-mRNA and sRNA-sRNA  regulatory interactions in bacteria. It integrates [IntaRNA](https://github.com/BackofenLab/IntaRNA) sequence-based predictions with experimental p-values using Fisher's and Stouffer's meta-analysis methods to rank target genes.
 
 ## Overview
 
