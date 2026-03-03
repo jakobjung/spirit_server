@@ -166,8 +166,8 @@ data/<timestamp>/
 
 Pre-loaded organisms in `data/default/`:
 
-- **Salmonella enterica SL1344** + sRNA PinT
-- **Bacteroides thetaiotaomicron** + sRNA MasB
+- **Salmonella enterica SL1344** + sRNA PinT including pulse expression ([Westermann et al. 2016](https://www.nature.com/articles/nature16547)) and MAPS ([Santos et al. 2021](https://pubmed.ncbi.nlm.nih.gov/33535041/)) datasets
+- **Bacteroides thetaiotaomicron** + sRNA MasB including pulse expression and MAPS ([Ryan et al. 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC10994844/)) datasets
 
 ## Authors
 
