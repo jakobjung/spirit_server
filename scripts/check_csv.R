@@ -33,11 +33,14 @@ if (grepl("\\.csv$", csv_file_path)) {
 }
 
 
-# Check if 'p_value' and 'gene_name' columns exist
-if (!("p_value" %in% colnames(csv_data)) || !(id %in% colnames(csv_data))) {
-  stop(paste0("Columns 'p_value' and ", id, " are not present in: ", csv_file_path))
+# Check if gene identifier column exists
+if (!(id %in% colnames(csv_data))) {
+  stop(paste0("Column '", id, "' is not present in: ", csv_file_path))
+}
+if (!("p_value" %in% colnames(csv_data))) {
+  message("Note: no 'p_value' column in ", csv_file_path, " — file will be used without p-values.")
 } else {
-  message("Columns 'p_value' and ", id, " are present in: ", csv_file_path)
+  message("Columns 'p_value' and '", id, "' are present in: ", csv_file_path)
 }
 
 

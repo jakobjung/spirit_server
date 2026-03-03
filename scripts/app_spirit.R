@@ -54,65 +54,118 @@ build_spirit_cmd <- function(fastaPath, gffPath, srnaPath,
 }
 
 ui <- function(request) {
-  fluidPage(
+  navbarPage(
+    title = "",
+    id = "mainNav",
     theme = shinytheme("sandstone"),
-    useShinyjs(),
-    tags$head(
-      tags$style(HTML("
-         /* Footer: white fill + dark-blue top line, stretched logos */
-        .footer-bar {
-          background-color: #ffffff;
-          border-top: 6px solid #002864;
-          padding: 12px 24px;
-          position: fixed; left: 0; right: 0; bottom: 0;
-          z-index: 1000;
-          display: flex; flex-wrap: nowrap;
-          justify-content: space-between; align-items: center; gap: 24px;
-        }
-        .footer-bar a { flex: 1 1 0; display: flex; justify-content: center; line-height: 0; }
-        .footer-logo { height: 44px; width: auto; max-width: 150%; }
-        body { padding-bottom: 72px; }
+    header = tagList(
+      useShinyjs(),
+      tags$head(
+        tags$style(HTML("
+          /* Navbar overrides: dark-blue background, white text */
+          .navbar-default {
+            background-color: #002864 !important;
+            border-color: #002864 !important;
+            position: relative;
+          }
+          /* Hide the empty brand text */
+          .navbar-default .navbar-brand { display: none !important; }
+          /* SPIRIT tab left, Help/Contact right */
+          .navbar-default .navbar-collapse {
+            display: flex !important;
+            padding: 0 !important;
+          }
+          .navbar-default .navbar-nav {
+            display: flex !important;
+            width: 100% !important;
+            float: none !important;
+            margin: 0 !important;
+          }
+          .navbar-default .navbar-nav > li:nth-child(2) {
+            margin-left: auto !important;
+          }
+          .navbar-default .navbar-nav > li > a {
+            color: #ffffff !important; font-weight: 600;
+          }
+          .navbar-default .navbar-nav > li > a:hover,
+          .navbar-default .navbar-nav > li > a:focus {
+            color: #ccdcf0 !important;
+            background-color: transparent !important;
+          }
+          .navbar-default .navbar-nav > .active > a,
+          .navbar-default .navbar-nav > .active > a:hover,
+          .navbar-default .navbar-nav > .active > a:focus {
+            color: #ffffff !important;
+            background-color: #001e4d !important;
+          }
+          .navbar-default .navbar-toggle { border-color: #ffffff; }
+          .navbar-default .navbar-toggle .icon-bar { background-color: #ffffff; }
+          .navbar-default .navbar-toggle:hover,
+          .navbar-default .navbar-toggle:focus {
+            background-color: #001e4d !important;
+          }
 
-        /* Buttons in #002864 */
-        .btn, .btn-default, .btn-primary {
-          background-color: #002864 !important; border-color: #002864 !important; color: #ffffff !important;
-        }
-        .btn:hover, .btn-default:hover, .btn-primary:hover,
-        .btn:focus, .btn-default:focus, .btn-primary:focus {
-          background-color: #001e4d !important; border-color: #001e4d !important; color: #ffffff !important;
-        }
-        .btn:active, .btn-default:active, .btn-primary:active,
-        .open > .dropdown-toggle.btn-default,
-        .open > .dropdown-toggle.btn-primary {
-          background-color: #001b45 !important; border-color: #001b45 !important; color: #ffffff !important;
-        }
+          /* Footer: white fill + dark-blue top line, stretched logos */
+          .footer-bar {
+            background-color: #ffffff;
+            border-top: 6px solid #002864;
+            padding: 12px 24px;
+            position: fixed; left: 0; right: 0; bottom: 0;
+            z-index: 1000;
+            display: flex; flex-wrap: nowrap;
+            justify-content: space-between; align-items: center; gap: 24px;
+          }
+          .footer-bar a { flex: 1 1 0; display: flex; justify-content: center; line-height: 0; }
+          .footer-logo { height: 44px; width: auto; max-width: 150%; }
+          body { padding-bottom: 72px; }
 
-        /* Intro card */
-        .intro-card {
-          max-width: 760px; margin: 40px auto; padding: 28px;
-          background: #ffffff; border-radius: 14px;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.08); text-align: center;
-        }
-        .intro-logo { max-width: 100%; height: auto; margin-bottom: 16px; }
-        .intro-title { font-size: 24px; font-weight: 700; margin-top: 8px; }
-        .intro-sub { color:#555; margin-top: 4px; }
-        .intro-list { text-align: left; display: inline-block; margin-top: 10px; }
-        .intro-credits { margin-top: 14px; font-weight: 600; }
+          /* Buttons in #002864 */
+          .btn, .btn-default, .btn-primary {
+            background-color: #002864 !important; border-color: #002864 !important; color: #ffffff !important;
+          }
+          .btn:hover, .btn-default:hover, .btn-primary:hover,
+          .btn:focus, .btn-default:focus, .btn-primary:focus {
+            background-color: #001e4d !important; border-color: #001e4d !important; color: #ffffff !important;
+          }
+          .btn:active, .btn-default:active, .btn-primary:active,
+          .open > .dropdown-toggle.btn-default,
+          .open > .dropdown-toggle.btn-primary {
+            background-color: #001b45 !important; border-color: #001b45 !important; color: #ffffff !important;
+          }
 
-        /* Full-page overlay while running */
-        .running-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .running-text { color: #c62828; font-weight: 800; text-align: center; font-size: clamp(26px, 4vw, 42px); line-height: 1.25; padding: 0 24px; }
-      "))
+          /* Intro card */
+          .intro-card {
+            max-width: 760px; margin: 40px auto; padding: 28px;
+            background: #ffffff; border-radius: 14px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.08); text-align: center;
+          }
+          .intro-logo { max-width: 60%; height: auto; margin-bottom: 16px; }
+          .intro-title { font-size: 24px; font-weight: 700; margin-top: 8px; }
+          .intro-sub { color:#555; margin-top: 4px; }
+          .intro-list { text-align: left; display: inline-block; margin-top: 10px; }
+          .intro-credits { margin-top: 14px; font-weight: 600; }
+
+          /* Full-page overlay while running */
+          .running-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+          .running-text { color: #c62828; font-weight: 800; text-align: center; font-size: clamp(26px, 4vw, 42px); line-height: 1.25; padding: 0 24px; }
+
+          /* Help & Contact page styling */
+          .help-container, .contact-container {
+            max-width: 860px; margin: 30px auto; padding: 0 20px;
+          }
+          .help-container h3, .contact-container h3 {
+            color: #002864; border-bottom: 2px solid #002864;
+            padding-bottom: 6px; margin-top: 28px;
+          }
+        ")),
+        tags$script(HTML("
+          window.addEventListener('popstate', function(e) {
+            Shiny.setInputValue('browserBack', Math.random());
+          });
+        "))
+      )
     ),
-
-    # Title bar
-    div(
-      style = "background-color: #002864; padding: 20px; text-align: center; color: white; font-size: 24px; font-weight: bold;",
-      "SPIRIT - Swift P-value Integration for sRNA Interaction Targets"
-    ),
-
-    # Footer logo bar
-    div(
+    footer = div(
       class = "footer-bar",
       tags$a(href = "https://www.bayresq.net", target = "_blank", rel = "noopener",
              tags$img(src = "spiritres/bayresq.png", class = "footer-logo", alt = "BayResQ")),
@@ -122,6 +175,8 @@ ui <- function(request) {
              tags$img(src = "spiritres/uniwue.png", class = "footer-logo", alt = "Universität Würzburg"))
     ),
 
+    # ---- SPIRIT tab (main app) ----
+    tabPanel("SPIRIT",
     sidebarLayout(
       sidebarPanel(
         id = "sidebarPanelID",
@@ -196,10 +251,16 @@ ui <- function(request) {
         conditionalPanel(
           condition = "output.showResults",
           h4("Plot Options"),
-          selectInput("xAxisCol", "X-axis Column (will show -log10):",
+          selectInput("xAxisCol", "X-axis Column:",
                       choices = NULL, selected = NULL),
-          selectInput("yAxisCol", "Y-axis Column (will show -log10):",
+          radioButtons("xScale", "X-axis scale:",
+                       choices = c("-log10", "log", "raw"),
+                       selected = "-log10", inline = TRUE),
+          selectInput("yAxisCol", "Y-axis Column:",
                       choices = NULL, selected = NULL),
+          radioButtons("yScale", "Y-axis scale:",
+                       choices = c("-log10", "log", "raw"),
+                       selected = "-log10", inline = TRUE),
           numericInput("xMax", "X-axis Maximum (optional)", value = NA),
           numericInput("yMax", "Y-axis Maximum (optional)", value = NA),
           selectInput("geneHoverCol", "Gene hover text column:",
@@ -232,7 +293,18 @@ ui <- function(request) {
           condition = "output.pipelineRunning",
           div(class = "running-overlay",
               div(class = "running-text",
-                  HTML("SPIRIT pipeline is running (est. time 2–10 minutes).<br>Please do not refresh.")
+                  div(style = "font-size: clamp(18px, 2.5vw, 28px);",
+                      HTML("SPIRIT pipeline is running (est. time 2&ndash;10 minutes).<br>Please do not refresh")),
+                  tags$br(),
+                  div(style = "font-size: 15px; font-weight: 400; color: #333; margin-top: 16px;",
+                      p("You can safely close this tab and come back later using this link:"),
+                      uiOutput("runningLink"),
+                      p(style = "margin-top: 8px; font-size: 13px; color: #666;",
+                        "Bookmark or copy this URL to check your results later")
+                  ),
+                  tags$br(),
+                  actionButton("cancelBtn", "Cancel Pipeline",
+                               style = "font-size: 16px; padding: 10px 28px; background-color: #c62828 !important; border-color: #c62828 !important;")
               )
           )
         ),
@@ -260,6 +332,79 @@ ui <- function(request) {
         )
       )
     )
+    ),
+
+    # ---- Help tab ----
+    tabPanel("Help",
+      div(class = "help-container",
+        h2("How to Use SPIRIT"),
+        h3("1. Select an Organism"),
+        p("Choose a pre-loaded organism (Salmonella SL1344 or B. thetaiotaomicron) from the dropdown,",
+          "or select \"Own files\" to upload your own genome FASTA and GFF annotation."),
+        h3("2. Select an sRNA"),
+        p("For pre-loaded organisms a default sRNA is available (e.g. PinT for Salmonella, MasB for B. theta).",
+          "Select \"Own files\" to upload your own sRNA FASTA."),
+        h3("3. Upload Experiment Tables"),
+        p("Upload one or more CSV or Excel files containing experimental evidence.",
+          "Each file must include a gene identifier column (matching the GFF) and a column named",
+          tags$code("p_value"), "."),
+        p("For pre-loaded organisms, default datasets are available and pre-selected."),
+        h3("4. Configure and Run"),
+        tags$ul(
+          tags$li(tags$b("Gene identifier column:"),
+                  " set to the column name used in your experiment tables and GFF (default: locus_tag)."),
+          tags$li(tags$b("Fisher weights:"),
+                  " optionally provide comma-separated weights for the weighted Fisher's method."),
+          tags$li("Click ", tags$b("Run SPIRIT"), " to start the pipeline. Estimated run time: 2\u201310 minutes.")
+        ),
+        h3("5. View Results"),
+        p("After the pipeline completes, an interactive scatter plot and a downloadable results table are shown.",
+          "Use the sidebar to change plot axes. Download results as TSV, Excel, or an interactive HTML report."),
+        tags$hr(),
+        h2("Pipeline Methods"),
+        h3("IntaRNA Interaction Prediction"),
+        p("SPIRIT uses ",
+          tags$a(href = "https://github.com/BackofenLab/IntaRNA", target = "_blank", "IntaRNA"),
+          " to predict sRNA\u2013mRNA interactions based on minimum free energy (MFE) of hybridisation.",
+          "Statistical significance is assessed by comparing real MFEs against a Gumbel distribution fitted to shuffled-sequence controls."),
+        h3("Fisher's Method"),
+        p("P-values from each evidence source (IntaRNA + experiment tables) are combined using Fisher's method",
+          "(optionally weighted). The test statistic is: ",
+          tags$code("-2 * sum(w_i * log(p_i))"), "."),
+        h3("Stouffer's Method"),
+        p("As an alternative, Stouffer's Z-method converts each p-value to a Z-score and combines them: ",
+          tags$code("Z = sum(w_i * qnorm(1 - p_i)) / sqrt(sum(w_i^2))"), "."),
+        h3("FDR Correction"),
+        p("Both Fisher and Stouffer combined p-values are adjusted for multiple testing",
+          "using the Benjamini\u2013Hochberg procedure.")
+      )
+    ),
+
+    # ---- Contact tab ----
+    tabPanel("Contact",
+      div(class = "contact-container",
+        h2("Contact"),
+        h3("Authors"),
+        tags$ul(
+          tags$li(tags$b("Hoda Kooshapour"),
+                  " \u2013 Helmholtz Institute for RNA-based Infection Research (HIRI)"),
+          tags$li(tags$b("Jakob J. Jung"),
+                  " \u2013 Helmholtz Institute for RNA-based Infection Research (HIRI)")
+        ),
+        h3("Source Code"),
+        p(tags$a(href = "https://github.com/jakobjung/spirit_server", target = "_blank",
+                 "https://github.com/jakobjung/spirit_server")),
+        h3("Institutions"),
+        tags$ul(
+          tags$li(tags$a(href = "https://www.helmholtz-hiri.de", target = "_blank",
+                         "Helmholtz Institute for RNA-based Infection Research (HIRI)")),
+          tags$li(tags$a(href = "https://www.uni-wuerzburg.de", target = "_blank",
+                         "Julius-Maximilians-Universit\u00e4t W\u00fcrzburg")),
+          tags$li(tags$a(href = "https://www.bayresq.net", target = "_blank",
+                         "BayResq \u2013 Bavarian Research Network"))
+        )
+      )
+    )
   )
 }
 
@@ -271,7 +416,9 @@ server <- function(input, output, session) {
     useExample       = FALSE,
     pipelineRunning  = FALSE,
     spiritFolder     = NULL,
-    runId            = NULL
+    runId            = NULL,
+    pidFile          = NULL,
+    cancelled        = FALSE
   )
     output$dl_xlsx <- downloadHandler(
     filename = function() {
@@ -454,6 +601,17 @@ server <- function(input, output, session) {
   outputOptions(output, "pipelineRunning", suspendWhenHidden = FALSE)
   output$showResults <- reactive({ rv$done })
   outputOptions(output, "showResults", suspendWhenHidden = FALSE)
+
+  output$runningLink <- renderUI({
+    req(rv$runId, rv$pipelineRunning)
+    port <- session$clientData$url_port
+    host <- session$clientData$url_hostname
+    protocol <- session$clientData$url_protocol
+    url <- paste0(protocol, "//", host, ":", port, "/?runId=", rv$runId)
+    tags$a(href = url, target = "_blank",
+           style = "color: #002864; font-weight: 600; word-break: break-all;",
+           url)
+  })
 
   jobs_dir <- normalizePath(file.path(".", "data", "jobs"), mustWork = FALSE)
   if (!dir.exists(jobs_dir)) dir.create(jobs_dir, recursive = TRUE)
@@ -822,10 +980,15 @@ server <- function(input, output, session) {
     message(rv$status)
 
     # ---- Run SPIRIT in background ----
+    pid_file <- file.path(tempdir(), paste0(".spirit_pid_", rv$runId))
+    rv$pidFile <- pid_file
+    rv$cancelled <- FALSE
+    wrapped_cmd <- paste0("echo $$ > ", shQuote(pid_file), " && ", cmd)
     future({
-      exit_code <- system(cmd)
+      exit_code <- system(wrapped_cmd)
       list(exit_code = exit_code)
     }) %...>% (function(res) {
+      if (isTRUE(rv$cancelled)) return(invisible(NULL))
       # FAILURE
       if (is.null(res) || res$exit_code != 0) {
         write_job(rv$runId, list(
@@ -883,6 +1046,7 @@ server <- function(input, output, session) {
       session$doBookmark()  # generate shareable URL
       invisible(NULL)
     }) %...!% (function(e) {
+      if (isTRUE(rv$cancelled)) return(invisible(NULL))
       write_job(rv$runId, list(
         status   = "failed",
         finished = as.character(Sys.time()),
@@ -899,6 +1063,49 @@ server <- function(input, output, session) {
       message("Would send email to: ", input$email)
     }
   })
+
+  # ---- Cancel pipeline helper ----
+  cancel_pipeline <- function() {
+    if (!rv$pipelineRunning) return()
+    rv$cancelled <- TRUE
+
+    # Kill the background process
+    if (!is.null(rv$pidFile) && file.exists(rv$pidFile)) {
+      tryCatch({
+        pid <- as.integer(trimws(readLines(rv$pidFile, n = 1, warn = FALSE)))
+        if (!is.na(pid)) {
+          system(paste("pkill -TERM -P", pid, "2>/dev/null; kill -TERM", pid, "2>/dev/null"),
+                 wait = FALSE)
+        }
+      }, error = function(e) message("Could not kill pipeline process: ", e$message))
+      unlink(rv$pidFile)
+    }
+
+    # Update job ticket
+    if (!is.null(rv$runId)) {
+      write_job(rv$runId, list(
+        status   = "cancelled",
+        finished = as.character(Sys.time())
+      ))
+    }
+
+    # Reset UI state
+    rv$pipelineRunning <- FALSE
+    rv$done <- FALSE
+    rv$status <- "Pipeline cancelled."
+    rv$pidFile <- NULL
+    output$runStatus <- renderText(rv$status)
+    shinyjs::show("sidebarPanelID")
+    updateQueryString("?", mode = "replace")
+  }
+
+  observeEvent(input$cancelBtn, { cancel_pipeline() })
+  observeEvent(input$browserBack, { cancel_pipeline() })
+  observeEvent(input$mainNav, {
+    if (identical(input$mainNav, "SPIRIT") && rv$pipelineRunning) {
+      cancel_pipeline()
+    }
+  }, ignoreInit = TRUE)
 
 
   # Populate plot option dropdowns after pipeline finishes
@@ -924,7 +1131,8 @@ server <- function(input, output, session) {
   })
 
   output$plotResult <- renderPlotly({
-    req(rv$done, rv$finalData, input$xAxisCol, input$yAxisCol, input$geneHoverCol)
+    req(rv$done, rv$finalData, input$xAxisCol, input$yAxisCol, input$geneHoverCol,
+        input$xScale, input$yScale)
     df <- rv$finalData
     shiny::validate(
       shiny::need(input$xAxisCol %in% names(df), "X-axis col not found in data"),
@@ -933,15 +1141,33 @@ server <- function(input, output, session) {
       shiny::need(is.numeric(df[[input$yAxisCol]]), "Y-axis col must be numeric")
     )
 
-    p <- ggplot(df, aes(x = -log10(.data[[input$xAxisCol]]),
-                        y = -log10(.data[[input$yAxisCol]]),
+    apply_scale <- function(vals, scale) {
+      switch(scale,
+        "-log10" = -log10(pmax(vals, .Machine$double.xmin)),
+        "log"    = log(pmax(vals, .Machine$double.xmin)),
+        "raw"    = vals)
+    }
+    scale_label <- function(col, scale) {
+      switch(scale,
+        "-log10" = paste0("-log10(", col, ")"),
+        "log"    = paste0("log(", col, ")"),
+        "raw"    = col)
+    }
+
+    df$x_plot <- apply_scale(df[[input$xAxisCol]], input$xScale)
+    df$y_plot <- apply_scale(df[[input$yAxisCol]], input$yScale)
+
+    x_lab <- scale_label(input$xAxisCol, input$xScale)
+    y_lab <- scale_label(input$yAxisCol, input$yScale)
+
+    p <- ggplot(df, aes(x = x_plot, y = y_plot,
                         text = .data[[input$geneHoverCol]])) +
       geom_point(alpha = 0.5, colour = "steelblue") +
       theme_bw() +
       labs(
-        title = paste("Scatter of", input$xAxisCol, "vs.", input$yAxisCol, "(both -log10)"),
-        x = paste0("-log10(", input$xAxisCol, ")"),
-        y = paste0("-log10(", input$yAxisCol, ")")
+        title = paste("Scatter of", x_lab, "vs.", y_lab),
+        x = x_lab,
+        y = y_lab
       )
     if (!is.na(input$xMax)) p <- p + scale_x_continuous(limits = c(0, input$xMax))
     if (!is.na(input$yMax)) p <- p + scale_y_continuous(limits = c(0, input$yMax))
@@ -950,4 +1176,4 @@ server <- function(input, output, session) {
   })
 }
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server, options = list(port = 3838))

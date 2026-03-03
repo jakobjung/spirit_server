@@ -1,6 +1,6 @@
 # SPIRIT
 
-**Simple P-value Integration of Regulatory Interaction Targets**
+**Swift P-value Integration of Regulatory Interaction Targets**
 
 SPIRIT is a bioinformatics pipeline that predicts sRNA–mRNA regulatory interactions. It integrates [IntaRNA](https://github.com/BackofenLab/IntaRNA) sequence-based interaction predictions with experimental p-values using Fisher's and Stouffer's meta-analysis methods to rank target genes.
 
@@ -13,26 +13,56 @@ Given an sRNA of interest and one or more experimental datasets (e.g. RNA-seq, M
 3. Combines IntaRNA p-values with experimental p-values via Fisher's and Stouffer's methods
 4. Applies FDR correction and produces ranked target lists with diagnostic plots
 
-## Requirements
-
-### External tools
-
-- [IntaRNA](https://github.com/BackofenLab/IntaRNA) — RNA–RNA interaction prediction
-- [bedtools](https://bedtools.readthedocs.io/) — genome arithmetic
-- [seqtk](https://github.com/lh3/seqtk) — FASTA/FASTQ toolkit
-- [esl-shuffle](http://eddylab.org/infernal/) (from Easel/Infernal) — sequence shuffling
-- [py_fasta_validator](https://github.com/linsalrob/PyFastaValidator) — FASTA validation
-- [R](https://www.r-project.org/) (≥ 4.0) with `Rscript`
-
-### R packages
-
-**Core:** tidyverse, readxl, writexl, rtracklayer, MASS, evd, cowplot, ggrepel, ggpubr
-
-**Shiny app (optional):** shiny, shinythemes, shinyjs, DT, plotly, promises, future, jsonlite
+## Installation
 
 ### Conda (recommended)
 
-If a `spirit` conda environment is available, the pipeline will activate it automatically.
+All dependencies (external tools, R, and R packages) are bundled in the provided conda environment file.
+
+```bash
+# Create the environment from the exported file
+conda env create -f SPIRIT.yml
+
+# Activate it
+conda activate spirit
+```
+
+If a `spirit` conda environment is available, the pipeline will activate it automatically when run.
+
+### Key dependencies and versions
+
+| Tool / Package | Version | Source |
+|----------------|---------|--------|
+| R | 4.3.3 | conda-forge |
+| IntaRNA | 3.4.0 | bioconda |
+| bedtools | 2.31.1 | bioconda |
+| seqtk | 1.4 | bioconda |
+| Easel (esl-shuffle) | 0.49 | bioconda |
+| py_fasta_validator | 0.6 | bioconda |
+
+### R packages (all included in conda env)
+
+**Core pipeline:** tidyverse, readxl, writexl, rtracklayer, MASS, evd, cowplot, ggrepel, ggpubr
+
+**Shiny web app:** shiny, shinythemes, shinyjs, DT, plotly, promises, future, jsonlite, htmltools
+
+### Manual installation (without conda)
+
+If you prefer not to use conda, install the external tools listed above manually, then install the R packages:
+
+```r
+# CRAN packages
+install.packages(c(
+  "tidyverse", "readxl", "writexl", "MASS", "evd", "cowplot",
+  "ggrepel", "ggpubr", "shiny", "shinythemes", "shinyjs",
+  "DT", "plotly", "promises", "future", "jsonlite", "htmltools"
+))
+
+# Bioconductor package
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("rtracklayer")
+```
 
 ## Usage
 
@@ -83,7 +113,34 @@ sh SPIRIT.sh \
 ### Shiny web interface
 
 ```bash
+# Run locally (accessible at http://localhost:3838)
 Rscript scripts/app_spirit.R
+```
+
+> **Important:** Always run from the project root directory — the app uses relative paths (`./data`, `./SPIRIT.sh`).
+
+### Deploying on a server
+
+1. Clone the repository and set up the conda environment (see [Installation](#installation))
+2. Make sure to run the app from the project root:
+
+```bash
+cd /path/to/spirit_commandline
+conda activate spirit
+Rscript scripts/app_spirit.R
+```
+
+3. The app listens on **port 3838** by default. Ensure this port is open in your firewall.
+4. If running behind a reverse proxy (e.g. nginx), enable WebSocket support:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3838;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+}
 ```
 
 ## Pipeline steps

@@ -183,7 +183,8 @@ exp_names <- gsub("_p_value", "", pval_cols)
 # ok now go through the p-values and make a plot for each. save them in a list
 p_val_distr_list <- list()
 for (i in 1:length(pval_cols)) {
-  p_val_distr_list[[i]] <- ggplot(data_only_pvals, aes(.data[[pval_cols[i]]])) +
+  plot_df <- data_only_pvals[data_only_pvals[[pval_cols[i]]] != 1, , drop = FALSE]
+  p_val_distr_list[[i]] <- ggplot(plot_df, aes(.data[[pval_cols[i]]])) +
     geom_histogram( binwidth = 0.01, fill="steelblue") +
     labs(title = paste("Distribution of \np-values for", exp_names[i]),
          x = "p-value",

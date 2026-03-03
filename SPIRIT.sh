@@ -19,7 +19,7 @@ fi
 ################################################################################
 Help()
 {
-  echo "SPIRIT: Simple P-value Integration of Regulatory Interaction Targets"
+  echo "SPIRIT: Swift P-value Integration of Regulatory Interaction Targets"
   echo
   echo "Usage:  sh SPIRIT.sh -f <fasta_file> -g <gff_file> -s <sRNA_fasta> -a <csv1> [options]"
   echo "        Results will be saved in a timestamped folder (default root: './data')."
