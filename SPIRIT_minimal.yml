@@ -1,0 +1,31 @@
+name: spirit
+channels:
+  - bioconda
+  - conda-forge
+  - r
+  - defaults
+dependencies:
+  - bedtools
+  - intarna
+  - seqtk
+  - easel
+  - py_fasta_validator
+  - r-base>=4.3
+  - r-tidyverse
+  - r-readxl
+  - r-writexl
+  - bioconductor-rtracklayer
+  - r-mass
+  - r-evd
+  - r-cowplot
+  - r-ggrepel
+  - r-ggpubr
+  - r-corrplot
+  - r-shiny
+  - r-shinythemes
+  - r-shinyjs
+  - r-dt
+  - r-plotly
+  - r-promises
+  - r-future
+  - r-jsonlite
