@@ -26,8 +26,8 @@ Given an sRNA of interest and one or more experimental datasets (e.g. RNA-seq, M
 git clone https://github.com/jakobjung/spirit_server.git
 cd spirit_server
 
-# 2. Create and activate the conda environment
-conda env create -f SPIRIT.yml
+# 2. Create and activate the conda environment (using mamba for faster solving)
+mamba env create -f SPIRIT_minimal.yml
 conda activate spirit
 
 # 3. Run the web interface
@@ -39,12 +39,24 @@ Rscript scripts/app_spirit.R
 
 ## Installation
 
-### Conda (recommended)
+### Mamba/Conda (recommended)
 
-All dependencies (external tools, R, and R packages) are bundled in the provided conda environment file.
+All dependencies (external tools, R, and R packages) are bundled in the provided conda environment file. We recommend using [mamba](https://mamba.readthedocs.io/) (via [Miniforge](https://github.com/conda-forge/miniforge)) instead of conda, as conda's solver can require excessive memory.
 
 ```bash
-conda env create -f SPIRIT.yml
+# Install Miniforge if you don't have mamba
+wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh
+
+# Create and activate the environment
+mamba env create -f SPIRIT_minimal.yml
+conda activate spirit
+```
+
+Alternatively, if you prefer conda:
+
+```bash
+conda env create -f SPIRIT_minimal.yml
 conda activate spirit
 ```
 
