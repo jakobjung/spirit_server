@@ -53,6 +53,14 @@ build_spirit_cmd <- function(fastaPath, gffPath, srnaPath,
   )
 }
 
+# A real pipeline run lives in a timestamped folder like 2026_05_26_T_16_17_45.
+# Default/precomputed result folders (default_result_pinT, default_result_masB, …)
+# never match this, so they are protected from auto-cleanup and manual deletion.
+is_timestamped_run <- function(folder) {
+  !is.null(folder) && nzchar(folder) &&
+    grepl("^20[0-9]{2}_[0-9]{2}_[0-9]{2}_T_[0-9]{2}_[0-9]{2}_[0-9]{2}$", basename(folder))
+}
+
 ui <- function(request) {
   navbarPage(
     title = "",
@@ -353,8 +361,8 @@ ui <- function(request) {
                          class = "delete-result-btn",
                          title = "Delete this result and go back"),
           ),
-          div(style = "background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px 14px; margin-bottom: 12px; color: #664d03;",
-              tags$b("Note:"), " Results will be deleted after 30 days."),
+          div(id = "retentionNote", style = "background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px 14px; margin-bottom: 12px; color: #664d03;",
+              tags$b("Note:"), " Results are deleted after 20 days."),
           textOutput("runStatus"),
           tags$hr(),
           h4("Shareable link to this result"),
@@ -460,17 +468,23 @@ ui <- function(request) {
 }
 
 server <- function(input, output, session) {
-  # Clean up result folders older than 30 days (only timestamped folders starting with "20")
+  # Clean up result folders older than 20 days. ONLY timestamped run folders
+  # (e.g. 2026_05_26_T_16_17_45) are eligible — default_result_* and any other
+  # named/default folders never match is_timestamped_run(), so they are safe.
   data_root <- file.path(getwd(), "data")
   if (dir.exists(data_root)) {
     all_dirs <- list.dirs(data_root, full.names = TRUE, recursive = FALSE)
     for (d in all_dirs) {
-      dname <- basename(d)
-      if (!grepl("^20", dname)) next
+      if (!is_timestamped_run(d)) next
       age_days <- as.numeric(difftime(Sys.time(), file.info(d)$mtime, units = "days"))
-      if (!is.na(age_days) && age_days > 30) {
+      if (!is.na(age_days) && age_days > 20) {
         unlink(d, recursive = TRUE)
       }
+    }
+    # also prune stale job tickets older than 20 days
+    for (jf in list.files(file.path(data_root, "jobs"), pattern = "\\.json$", full.names = TRUE)) {
+      age_days <- as.numeric(difftime(Sys.time(), file.info(jf)$mtime, units = "days"))
+      if (!is.na(age_days) && age_days > 20) unlink(jf)
     }
   }
 
@@ -669,6 +683,20 @@ server <- function(input, output, session) {
 
   output$runningLink <- renderUI({
     req(rv$runId, rv$pipelineRunning)
+    port <- session$clientData$url_port
+    host <- session$clientData$url_hostname
+    protocol <- session$clientData$url_protocol
+    url <- paste0(protocol, "//", host, ":", port, "/?runId=", rv$runId)
+    tags$a(href = url, target = "_blank",
+           style = "color: #002864; font-weight: 600; word-break: break-all;",
+           url)
+  })
+
+  # Shareable link to a finished result: the robust ?runId= URL, which the
+  # recovery observer above restores reliably (loads folder + finalData, flips
+  # rv$done). This replaces the fragile Shiny URL-state bookmark.
+  output$bookmark_ui <- renderUI({
+    req(rv$done, rv$runId)
     port <- session$clientData$url_port
     host <- session$clientData$url_hostname
     protocol <- session$clientData$url_protocol
@@ -988,10 +1016,9 @@ server <- function(input, output, session) {
     state$values$yAxisCol <- input$yAxisCol
     state$values$geneHoverCol <- input$geneHoverCol
   })
-  onBookmarked(function(url) {
-    updateQueryString(gsub("^[^?]*", "", url), mode = "replace")
-    output$bookmark_ui <- renderUI({ tags$a(href = url, target = "_blank", url) })
-  })
+  # Shareable links use the ?runId= scheme (see output$bookmark_ui); native Shiny
+  # URL-state bookmarking is no longer used to build the link.
+  onBookmarked(function(url) { })
   onRestored(function(state) {
     if (!is.null(state$values$spiritFolder)) {
       rv$spiritFolder <- state$values$spiritFolder
@@ -1087,7 +1114,6 @@ server <- function(input, output, session) {
         rv$done <- TRUE
         rv$pipelineRunning <- FALSE
         output$runStatus <- renderText(rv$status)
-        session$doBookmark()  # generate shareable URL
         return(invisible(NULL))
       } else {
         # fall back to full run if folder/file missing
@@ -1123,7 +1149,6 @@ server <- function(input, output, session) {
         rv$done <- TRUE
         rv$pipelineRunning <- FALSE
         output$runStatus <- renderText(rv$status)
-        session$doBookmark()
         return(invisible(NULL))
       } else {
         message("Precomputed folder not found or incomplete: ", pre_folder, " - falling back to full run.")
@@ -1281,7 +1306,6 @@ server <- function(input, output, session) {
       rv$done <- TRUE
       rv$pipelineRunning <- FALSE
       output$runStatus <- renderText(rv$status)
-      session$doBookmark()  # generate shareable URL
       invisible(NULL)
     }) %...!% (function(e) {
       if (isTRUE(rv$cancelled)) return(invisible(NULL))
@@ -1341,6 +1365,14 @@ server <- function(input, output, session) {
   observeEvent(input$browserBack, { cancel_pipeline() })
 
   # Delete result: confirm, remove folder, and reset to start
+  # Hide the delete button + retention note for default/precomputed results
+  # (only real timestamped runs are deletable / subject to the 20-day cleanup).
+  observe({
+    deletable <- isTRUE(rv$done) && is_timestamped_run(rv$spiritFolder)
+    shinyjs::toggle("deleteResultBtn", condition = deletable)
+    shinyjs::toggle("retentionNote",   condition = deletable)
+  })
+
   observeEvent(input$deleteResultBtn, {
     showModal(modalDialog(
       title = "Delete this result?",
@@ -1355,6 +1387,11 @@ server <- function(input, output, session) {
   observeEvent(input$confirmDeleteResult, {
     removeModal()
     folder <- rv$spiritFolder
+    # Safety net: never delete default/precomputed result folders.
+    if (!is.null(folder) && !is_timestamped_run(folder)) {
+      showNotification("Default results cannot be deleted.", type = "warning")
+      return(invisible(NULL))
+    }
     if (!is.null(folder) && dir.exists(folder)) {
       unlink(folder, recursive = TRUE)
     }
