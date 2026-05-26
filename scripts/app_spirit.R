@@ -160,6 +160,16 @@ ui <- function(request) {
           }
           .delete-result-btn:hover { background: rgba(198,40,40,0.1); }
 
+          /* sRNA structure preview card */
+          .srna-card {
+            max-width: 760px; margin: 20px auto; padding: 18px 22px;
+            background: #ffffff; border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.07); text-align: center;
+          }
+          .srna-card h4 { color: #002864; margin: 0 0 8px 0; }
+          .srna-card .srna-sub { color: #666; font-size: 13px; margin-bottom: 10px; }
+          .srna-card img { max-width: 100%; height: auto; }
+
           /* Help & Contact page styling */
           .help-container, .contact-container {
             max-width: 860px; margin: 30px auto; padding: 0 20px;
@@ -206,10 +216,11 @@ ui <- function(request) {
             "organismChoice", "Organism",
             choices = c(
               "Bacteroides thetaiotaomicron VPI-5482" = "btheta",
+              "Escherichia coli K-12 MG1655 (U00096)" = "k12",
               "Salmonella enterica serovar Typhimurium SL1344" = "sl1344",
               "Own files" = "own"
             ),
-            selected = "sl1344"
+            selected = "btheta"
           ),
 
           # Default reference downloads (only for preset organisms)
@@ -255,7 +266,16 @@ ui <- function(request) {
 
           textInput("idCol", "Gene identifier column (default: locus_tag)",
                     value = "locus_tag", placeholder = "e.g. gene, locus_tag, etc."),
-          textInput("weights", "Fisher Weights (comma-separated)", ""),
+          checkboxInput("use_weights", "Use weights", value = FALSE),
+          conditionalPanel(
+            condition = "input.use_weights == true",
+            textInput("weights", "Weights (comma-separated)",
+                      value = "", placeholder = "e.g. 1,1,2"),
+            tags$small(
+              style = "color: #666; display: block; margin-top: -6px; margin-bottom: 8px;",
+              "Order: P-value dataset 1, P-value dataset 2, …, IntaRNA P-value (computed here)."
+            )
+          ),
           textInput("email", "Email address (optional)", ""),
           tags$hr(),
           actionButton("runBtn", "Run SPIRIT")
@@ -299,7 +319,8 @@ ui <- function(request) {
                 )
               ),
               div(class = "intro-credits", "Created by Hoda Kooshapour & Jakob Jung")
-          )
+          ),
+          uiOutput("srnaStructurePreview")
         ),
 
         # Running overlay
@@ -357,7 +378,9 @@ ui <- function(request) {
             downloadButton("dl_html", "Download Interactive Report (.html)")
           ),
           h4("Final Combined Table"),
-          dataTableOutput("finalTable")
+          dataTableOutput("finalTable"),
+          tags$hr(),
+          uiOutput("srnaStructurePreviewResults")
       )
     )
     ),
@@ -745,22 +768,158 @@ server <- function(input, output, session) {
 
   defaultDir <- normalizePath(file.path(".", "data", "default"))
 
+  # ---- sRNA catalogues (loaded once from default fastas) ----
+  read_fasta_names <- function(path) {
+    if (!file.exists(path)) return(character(0))
+    lines <- readLines(path, warn = FALSE)
+    sort(sub("^>\\s*", "", lines[startsWith(lines, ">")]))
+  }
+  k12_srna_path    <- file.path(defaultDir, "sRNAs_K12.fasta")
+  sl1344_srna_path <- file.path(defaultDir, "sRNAs_SL1344.fasta")
+  btheta_srna_path <- file.path(defaultDir, "sRNAs_Btheta.fasta")
+  k12_srna_names    <- read_fasta_names(k12_srna_path)
+  sl1344_srna_names <- read_fasta_names(sl1344_srna_path)
+  btheta_srna_names <- read_fasta_names(btheta_srna_path)
+
+  # Extract a single record from a multi-fasta into a temp single-record fasta
+  write_srna_to_tmp <- function(fasta_path, name) {
+    req(file.exists(fasta_path))
+    all_lines <- readLines(fasta_path, warn = FALSE)
+    hdr_idx <- which(startsWith(all_lines, ">"))
+    hdrs    <- sub("^>\\s*", "", all_lines[hdr_idx])
+    match_i <- which(hdrs == name)
+    req(length(match_i) == 1)
+    start_l <- hdr_idx[match_i]
+    end_l   <- if (match_i < length(hdr_idx)) hdr_idx[match_i + 1] - 1 else length(all_lines)
+    out <- tempfile(pattern = paste0("sRNA_", name, "_"), fileext = ".fasta")
+    writeLines(all_lines[start_l:end_l], out)
+    out
+  }
+
   # ---- Dynamic sRNA choices based on organism ----
   output$srnaChoiceUI <- renderUI({
     if (identical(input$organismChoice, "sl1344")) {
-      selectInput("srnaChoice", "sRNA", choices = c("PinT" = "pint", "Own files" = "own"), selected = "pint")
+      named <- setNames(sl1344_srna_names, sl1344_srna_names)
+      other <- named[!names(named) %in% c("PinT")]
+      pint_options <- c("PinT (with data)" = "pint_with_data")
+      choices <- c(pint_options, other, c("Own files" = "own"))
+      selectInput("srnaChoice", "sRNA", choices = choices, selected = "pint_with_data")
     } else if (identical(input$organismChoice, "btheta")) {
-      selectInput("srnaChoice", "sRNA", choices = c("MasB" = "masb", "Own files" = "own"), selected = "masb")
+      others <- setdiff(btheta_srna_names, "BTnc201")
+      named  <- setNames(others, others)
+      masb_option <- c("MasB (BTnc201)" = "masb")
+      choices <- c(masb_option, named, c("Own files" = "own"))
+      selectInput("srnaChoice", "sRNA", choices = choices, selected = "masb")
+    } else if (identical(input$organismChoice, "k12")) {
+      named <- setNames(k12_srna_names, k12_srna_names)
+      choices <- c(named, c("Own files" = "own"))
+      default_pick <- if ("MicC" %in% k12_srna_names) "MicC" else k12_srna_names[1]
+      selectInput("srnaChoice", "sRNA", choices = choices, selected = default_pick)
     } else {
       selectInput("srnaChoice", "sRNA", choices = c("Own files" = "own"), selected = "own")
     }
   })
 
+  # ---- sRNA structure preview (pre-rendered RNAfold PNGs) ----
+  sanitize_srna_name <- function(name) gsub("[^A-Za-z0-9_-]", "_", name)
+  resolve_srna_preview <- function(organism, srna) {
+    if (is.null(srna) || !nzchar(srna) || identical(srna, "own")) return(NULL)
+    if (identical(srna, "pint_with_data")) return(list(organism = "sl1344", display = "PinT",            file = "PinT",    key = "PinT"))
+    if (identical(srna, "masb"))           return(list(organism = "btheta", display = "MasB (BTnc201)", file = "BTnc201", key = "BTnc201"))
+    if (identical(organism, "sl1344") && srna %in% sl1344_srna_names)
+      return(list(organism = "sl1344", display = srna, file = sanitize_srna_name(srna), key = srna))
+    if (identical(organism, "btheta") && srna %in% btheta_srna_names)
+      return(list(organism = "btheta", display = srna, file = sanitize_srna_name(srna), key = srna))
+    if (identical(organism, "k12") && srna %in% k12_srna_names)
+      return(list(organism = "k12", display = srna, file = sanitize_srna_name(srna), key = srna))
+    NULL
+  }
+  build_srna_card <- function(info, with_download = FALSE) {
+    if (is.null(info)) return(NULL)
+    img_url  <- sprintf("spiritres/structures/%s/%s.png", info$organism, info$file)
+    img_disk <- file.path(www_dir, "structures", info$organism, paste0(info$file, ".png"))
+    if (!file.exists(img_disk)) return(NULL)
+    download_ui <- if (with_download) {
+      div(style = "display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px;",
+          downloadButton("dl_structure_png", "PNG"),
+          downloadButton("dl_structure_svg", "SVG"),
+          downloadButton("dl_structure_pdf", "PDF"))
+    } else NULL
+    div(class = "srna-card",
+        tags$h4(paste("Predicted structure:", info$display)),
+        div(class = "srna-sub",
+            "MFE structure from RNAfold; nucleotides colored by base-pair probability (viridis)."),
+        tags$img(src = img_url, alt = paste(info$display, "secondary structure")),
+        download_ui
+    )
+  }
+  output$srnaStructurePreview <- renderUI({
+    build_srna_card(resolve_srna_preview(input$organismChoice, input$srnaChoice),
+                    with_download = FALSE)
+  })
+  output$srnaStructurePreviewResults <- renderUI({
+    req(rv$done)
+    build_srna_card(resolve_srna_preview(input$organismChoice, input$srnaChoice),
+                    with_download = TRUE)
+  })
+
+  # On-demand render: re-run RNAfold + Python renderer, output SVG/PDF/PNG via extension
+  srna_fasta_for <- function(organism) {
+    switch(organism, k12 = k12_srna_path, sl1344 = sl1344_srna_path, btheta = btheta_srna_path, NULL)
+  }
+  render_structure_to <- function(organism, key, sanitized, ext) {
+    src_fa <- srna_fasta_for(organism)
+    req(!is.null(src_fa), file.exists(src_fa))
+    all_lines <- readLines(src_fa, warn = FALSE)
+    hdr_idx <- which(startsWith(all_lines, ">"))
+    hdrs    <- sub("^>\\s*", "", all_lines[hdr_idx])
+    mi <- which(hdrs == key)
+    req(length(mi) == 1)
+    s <- hdr_idx[mi]; e <- if (mi < length(hdr_idx)) hdr_idx[mi + 1] - 1 else length(all_lines)
+
+    work <- tempfile(pattern = "struct_")
+    dir.create(work, showWarnings = FALSE)
+    fa <- file.path(work, paste0(sanitized, ".fa"))
+    writeLines(c(paste0(">", sanitized), all_lines[(s + 1):e]), fa)
+
+    old <- setwd(work); on.exit(setwd(old), add = TRUE)
+    system2("RNAfold", c("-p"), stdin = basename(fa), stdout = FALSE)
+    out <- file.path(work, paste0(sanitized, "_structure.", ext))
+    renderer <- file.path(app_dir, "render_srna_structure.py")
+    rc <- system2("python3", c(renderer, paste0(sanitized, "_ss.ps"),
+                               paste0(sanitized, "_dp.ps"), out))
+    req(rc == 0, file.exists(out))
+    out
+  }
+  mk_structure_handler <- function(ext) {
+    downloadHandler(
+      filename = function() {
+        info <- resolve_srna_preview(input$organismChoice, input$srnaChoice)
+        if (is.null(info)) paste0("structure.", ext) else paste0(info$file, "_structure.", ext)
+      },
+      content = function(file) {
+        info <- resolve_srna_preview(input$organismChoice, input$srnaChoice)
+        req(!is.null(info))
+        if (identical(ext, "png")) {
+          src <- file.path(www_dir, "structures", info$organism, paste0(info$file, ".png"))
+          req(file.exists(src))
+          file.copy(src, file, overwrite = TRUE)
+        } else {
+          out <- render_structure_to(info$organism, info$key, info$file, ext)
+          file.copy(out, file, overwrite = TRUE)
+        }
+      }
+    )
+  }
+  output$dl_structure_png <- mk_structure_handler("png")
+  output$dl_structure_svg <- mk_structure_handler("svg")
+  output$dl_structure_pdf <- mk_structure_handler("pdf")
+
   # ---- Dataset checkboxes: default-checked by organism+sRNA ----
   output$datasetChoiceUI <- renderUI({
     org <- input$organismChoice
     srn <- input$srnaChoice
-    if (identical(org, "sl1344") && identical(srn, "pint")) {
+    if (identical(org, "sl1344") && identical(srn, "pint_with_data")) {
       checkboxGroupInput(
         "defaultDatasets", "Default datasets (Salmonella + PinT):",
         choices  = c("MAPS" = "maps", "SPI1_Pulse" = "pulse"),
@@ -784,6 +943,7 @@ server <- function(input, output, session) {
     filename = function() {
       if (identical(input$organismChoice, "sl1344")) "SL1344_reference.fa"
       else if (identical(input$organismChoice, "btheta")) "B_theta_reference.fa"
+      else if (identical(input$organismChoice, "k12")) "K12_U00096.fasta"
       else "reference.fa"
     },
     content = function(file) {
@@ -791,6 +951,8 @@ server <- function(input, output, session) {
         file.path(defaultDir, "FQ312003_wplasmids.fa")
       } else if (identical(input$organismChoice, "btheta")) {
         file.path(defaultDir, "B_theta_genome_and_plasmid.fa")
+      } else if (identical(input$organismChoice, "k12")) {
+        file.path(defaultDir, "K12_U00096.fasta")
       } else { "" }
       req(file.exists(src))
       file.copy(src, file, overwrite = TRUE)
@@ -800,6 +962,7 @@ server <- function(input, output, session) {
     filename = function() {
       if (identical(input$organismChoice, "sl1344")) "SL1344_annotation.gff3"
       else if (identical(input$organismChoice, "btheta")) "B_theta_annotation.gff3"
+      else if (identical(input$organismChoice, "k12")) "K12_U00096.gff3"
       else "annotation.gff3"
     },
     content = function(file) {
@@ -807,6 +970,8 @@ server <- function(input, output, session) {
         file.path(defaultDir, "FQ312003.1_srnas_plasmids.gff")
       } else if (identical(input$organismChoice, "btheta")) {
         file.path(defaultDir, "B_theta_annotation_210224.gff")
+      } else if (identical(input$organismChoice, "k12")) {
+        file.path(defaultDir, "K12_U00096.gff3")
       } else { "" }
       req(file.exists(src))
       file.copy(src, file, overwrite = TRUE)
@@ -850,13 +1015,28 @@ server <- function(input, output, session) {
   # ---- Autofill: SL1344 + PinT + idCol='gene' (datasets auto-default from UI) ----
   observeEvent(input$exampleDataBtn, {
     updateSelectInput(session, "organismChoice", selected = "sl1344")
-    updateSelectInput(session, "srnaChoice",     selected = "pint")
+    updateSelectInput(session, "srnaChoice",     selected = "pint_with_data")
     updateTextInput(session, "idCol", value = "gene")
-    rv$status <- "Autofill: Salmonella + PinT; Gene ID set to 'gene'."
+    rv$status <- "Autofill: Salmonella + PinT (with data); Gene ID set to 'gene'."
     output$runStatus <- renderText(rv$status)
   })
 
     observeEvent(input$runBtn, {
+    # Pre-flight: must have at least one experiment table (user-uploaded or a bundled default)
+    has_user_upload    <- !is.null(input$csv1) || !is.null(input$csv2) ||
+                          !is.null(input$csv3) || !is.null(input$csv4)
+    has_default_table  <- isTRUE(length(input$defaultDatasets) > 0)
+    if (!has_user_upload && !has_default_table) {
+      showModal(modalDialog(
+        title = "No experiment table provided",
+        "Please upload at least one experiment table (CSV or Excel) ",
+        "before running SPIRIT, or select a bundled default dataset.",
+        easyClose = TRUE,
+        footer = modalButton("OK")
+      ))
+      return(invisible(NULL))
+    }
+
     shinyjs::hide("sidebarPanelID")
     rv$pipelineRunning <- TRUE
     rv$done <- FALSE
@@ -879,7 +1059,7 @@ server <- function(input, output, session) {
 
     # ---------- FAST-PATH: precomputed Salmonella + PinT + (MAPS & Pulse), no uploads ----------
     is_default_pint <- isTRUE(input$organismChoice == "sl1344") &&
-                       isTRUE(input$srnaChoice == "pint") &&
+                       isTRUE(input$srnaChoice == "pint_with_data") &&
                        !is.null(input$defaultDatasets) &&
                        setequal(input$defaultDatasets, c("maps","pulse")) &&
                        is.null(input$fasta) && is.null(input$gff) && is.null(input$srna) &&
@@ -958,6 +1138,9 @@ server <- function(input, output, session) {
     } else if (identical(input$organismChoice, "sl1344")) {
       fastaPath <- file.path(defaultDir, "FQ312003_wplasmids.fa")
       gffPath   <- file.path(defaultDir, "FQ312003.1_srnas_plasmids.gff")
+    } else if (identical(input$organismChoice, "k12")) {
+      fastaPath <- file.path(defaultDir, "K12_U00096.fasta")
+      gffPath   <- file.path(defaultDir, "K12_U00096.gff3")
     } else {
       req(input$fasta, input$gff)
       inputDir <- tempdir()
@@ -966,10 +1149,22 @@ server <- function(input, output, session) {
     }
 
     # sRNA
-    if (identical(input$srnaChoice, "pint")) {
+    if (identical(input$srnaChoice, "pint_with_data")) {
       srnaPath <- file.path(defaultDir, "pinT.fasta")
     } else if (identical(input$srnaChoice, "masb")) {
       srnaPath <- file.path(defaultDir, "MasB.fasta")
+    } else if (identical(input$organismChoice, "sl1344") &&
+               !identical(input$srnaChoice, "own") &&
+               input$srnaChoice %in% sl1344_srna_names) {
+      srnaPath <- write_srna_to_tmp(sl1344_srna_path, input$srnaChoice)
+    } else if (identical(input$organismChoice, "btheta") &&
+               !identical(input$srnaChoice, "own") &&
+               input$srnaChoice %in% btheta_srna_names) {
+      srnaPath <- write_srna_to_tmp(btheta_srna_path, input$srnaChoice)
+    } else if (identical(input$organismChoice, "k12") &&
+               !identical(input$srnaChoice, "own") &&
+               input$srnaChoice %in% k12_srna_names) {
+      srnaPath <- write_srna_to_tmp(k12_srna_path, input$srnaChoice)
     } else {
       req(input$srna)
       inputDir2 <- if (exists("inputDir")) inputDir else tempdir()
@@ -979,7 +1174,7 @@ server <- function(input, output, session) {
     # Default datasets
     csv1Path <- ""; csv2Path <- ""; csv3Path <- ""; csv4Path <- ""
     if (!is.null(input$defaultDatasets)) {
-      if (identical(input$organismChoice, "sl1344") && identical(input$srnaChoice, "pint")) {
+      if (identical(input$organismChoice, "sl1344") && identical(input$srnaChoice, "pint_with_data")) {
         if ("maps"  %in% input$defaultDatasets) csv1Path <- file.path(defaultDir, "spi1_maps_default.csv")
         if ("pulse" %in% input$defaultDatasets) {
           if (nzchar(csv1Path)) csv2Path <- file.path(defaultDir, "spi1_pulse_default.csv") else csv1Path <- file.path(defaultDir, "spi1_pulse_default.csv")
@@ -1011,10 +1206,11 @@ server <- function(input, output, session) {
     # Require at least one dataset
     req(nzchar(csv1Path))
 
+    weights_arg <- if (isTRUE(input$use_weights)) (input$weights %||% "") else ""
     cmd <- build_spirit_cmd(
       fastaPath, gffPath, srnaPath,
       csv1Path, csv2Path, csv3Path, csv4Path,
-      idCol = input$idCol, weights = input$weights, outDir = outDir
+      idCol = input$idCol, weights = weights_arg, outDir = outDir
     )
 
     rv$status <- paste("Running SPIRIT pipeline with command:", cmd)
@@ -1226,7 +1422,7 @@ server <- function(input, output, session) {
   # Final table & plot
   output$finalTable <- renderDataTable({
     req(rv$done, rv$finalData)
-    datatable(rv$finalData, options = list(pageLength = 10))
+    datatable(rv$finalData, options = list(pageLength = 10), selection = "multiple")
   })
 
   output$plotResult <- renderPlotly({
@@ -1259,6 +1455,9 @@ server <- function(input, output, session) {
     x_lab <- scale_label(input$xAxisCol, input$xScale)
     y_lab <- scale_label(input$yAxisCol, input$yScale)
 
+    selected_idx <- input$finalTable_rows_selected
+    selected_idx <- selected_idx[selected_idx >= 1 & selected_idx <= nrow(df)]
+
     p <- ggplot(df, aes(x = x_plot, y = y_plot,
                         text = .data[[input$geneHoverCol]])) +
       geom_point(alpha = 0.5, colour = "steelblue") +
@@ -1268,6 +1467,14 @@ server <- function(input, output, session) {
         x = x_lab,
         y = y_lab
       )
+    if (length(selected_idx) > 0) {
+      sel_df <- df[selected_idx, , drop = FALSE]
+      p <- p + geom_point(
+        data = sel_df,
+        aes(x = x_plot, y = y_plot, text = .data[[input$geneHoverCol]]),
+        colour = "darkorange", size = 4, alpha = 1, stroke = 0.8
+      )
+    }
     if (!is.na(input$xMax)) p <- p + scale_x_continuous(limits = c(0, input$xMax))
     if (!is.na(input$yMax)) p <- p + scale_y_continuous(limits = c(0, input$yMax))
 

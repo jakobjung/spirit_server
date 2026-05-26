@@ -1,0 +1,66 @@
+# SPIRIT — curated conda environment (all direct dependencies).
+# Everything SPIRIT needs is here: R + R packages, Python + libs, and the
+# bioinformatics CLI tools. No pip / install.packages side-loads exist.
+# Verified to solve from conda-forge/bioconda on linux-64 (2026-05-26).
+#
+# Pinning policy: the CLI tools and interpreters are pinned to exact versions
+# (IntaRNA/ViennaRNA versions affect numerical output; r-base/python are ABI
+# anchors). R-package versions are left to the solver so conda-forge can supply
+# a self-consistent R 4.3.x stack — exact patch versions are rarely material and
+# over-pinning them across channels makes the solve brittle.
+#
+# Create on the cluster with:
+#     conda env create -f environment.yml      # (or: mamba env create -f ...)
+#     conda activate spirit
+#
+# For a byte-exact reproduction of the dev machine (linux-64 only, no solve):
+#     conda create -n spirit --file environment.linux-64.lock
+name: spirit
+channels:
+  - conda-forge
+  - bioconda
+  - r
+  - nodefaults          # don't touch repo.anaconda.com (defaults) — avoids the
+                        # Anaconda commercial-channel ToS and resolves from free channels only
+dependencies:
+  # --- interpreters ---
+  - python=3.12
+  - r-base=4.3.3
+
+  # --- bioinformatics CLI tools (invoked by SPIRIT.sh / app_spirit.R) ---
+  - intarna=3.4.0              # IntaRNA — sRNA-mRNA interaction prediction
+  - viennarna=2.6.4            # provides RNAfold (structure rendering)
+  - bedtools=2.31.1            # getfasta — strand-aware target extraction
+  - seqtk=1.4                  # fasta subsampling for the shuffled background
+  - easel=0.49                 # provides esl-shuffle (sequence shuffling)
+  - py_fasta_validator=0.6     # input FASTA validation
+
+  # --- Python (structure renderer: scripts/render_srna_structure.py) ---
+  - numpy=2.0.0
+  - matplotlib-base=3.10.1
+
+  # --- R packages used by the pipeline + Shiny app (versions left to solver) ---
+  - bioconductor-rtracklayer          # GFF parsing
+  - r-tidyverse
+  - r-dplyr
+  - r-tidyr
+  - r-readr
+  - r-readxl
+  - r-ggplot2
+  - r-ggpubr
+  - r-ggrepel
+  - r-cowplot
+  - r-evd                             # Gumbel fit for IntaRNA p-values
+  - r-mass
+  - r-writexl
+  - r-jsonlite
+  - r-htmltools
+  - r-rmarkdown
+  # --- Shiny web interface ---
+  - r-shiny
+  - r-shinythemes
+  - r-shinyjs
+  - r-dt
+  - r-plotly
+  - r-promises
+  - r-future                          # async job execution in the app

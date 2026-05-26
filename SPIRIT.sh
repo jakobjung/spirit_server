@@ -1,53 +1,7 @@
 #!/usr/bin/env bash
 # SPIRIT main pipeline
 
-# --- Safer shell settings ---
-set -Eeuo pipefail
-IFS=$'\n\t'
 
-# --- (Optional) conda activation with guard ---
-if command -v conda >/dev/null 2>&1; then
-  # shellcheck disable=SC1091
-  source "$(conda info --base)/etc/profile.d/conda.sh" || true
-  conda activate spirit || true
-else
-  echo "Note: conda not found in PATH; assuming required tools are available."
-fi
-
-################################################################################
-# Help                                                                         #
-################################################################################
-Help()
-{
-  echo "SPIRIT: Swift P-value Integration of Regulatory Interaction Targets"
-  echo
-  echo "Usage:  sh SPIRIT.sh -f <fasta_file> -g <gff_file> -s <sRNA_fasta> -a <csv1> [options]"
-  echo "        Results will be saved in a timestamped folder (default root: './data')."
-  echo
-  echo "Required:"
-  echo "  -f  FASTA file of target organism"
-  echo "  -g  GFF file of target organism"
-  echo "  -s  sRNA FASTA file"
-  echo "  -a  CSV with '<id>, p_value' columns (default id: 'locus_tag' or set via -i)"
-  echo
-  echo "Optional:"
-  echo "  -b  CSV/XLSX (same format)"
-  echo "  -c  CSV/XLSX (same format)"
-  echo "  -d  CSV/XLSX (same format)"
-  echo "  -w  Weights for Fisher's test, comma-separated"
-  echo "  -i  Gene identifier column (default: 'locus_tag')"
-  echo "  -o  Output root directory (default: './data')"
-  echo "  -t  Number of threads for IntaRNA (default: 0 = all available)"
-  echo
-  echo "Other:"
-  echo "  -h  Print help"
-  echo "  -V  Print version"
-  echo
-  echo "Version: v1.0.0"
-  echo "Docs & Code: https://github.com/jakobjung/SPIRIT"
-  echo "Mail:        jakobjung@tutanota.com"
-  echo "Authors:      Hoda Kooshapour, Jakob J. Jung"
-}
 
 version="v1.0.0"
 
