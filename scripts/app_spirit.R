@@ -1519,4 +1519,9 @@ server <- function(input, output, session) {
   })
 }
 
-shinyApp(ui = ui, server = server, options = list(port = 3838))
+# Port is configurable via the SPIRIT_PORT env var (default 3838, the Shiny
+# convention). Host defaults to 127.0.0.1; set SPIRIT_HOST=0.0.0.0 to bind all
+# interfaces. Lets IT set the port in a systemd unit without editing code.
+app_port <- as.integer(Sys.getenv("SPIRIT_PORT", "3838"))
+app_host <- Sys.getenv("SPIRIT_HOST", "127.0.0.1")
+shinyApp(ui = ui, server = server, options = list(host = app_host, port = app_port))
