@@ -21,6 +21,9 @@ plan(multisession)
 
 # --- Serve static files when running via Rscript ---
 get_script_dir <- function() {
+  # Explicit override (set by app.R under shiny-server, where there is no --file=)
+  env_dir <- Sys.getenv("SPIRIT_APP_DIR", "")
+  if (nzchar(env_dir) && dir.exists(env_dir)) return(normalizePath(env_dir))
   args <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep("^--file=", args, value = TRUE)
   if (length(file_arg)) normalizePath(dirname(sub("^--file=", "", file_arg))) else normalizePath(".")

@@ -1,20 +1,30 @@
-# Entry point for shiny-server (shiny-server auto-runs a file named app.R).
+# Entry point for shiny-server (it auto-runs a file named app.R).
 #
-# shiny-server sets the working directory to the folder that holds this app.R,
-# so this file lives at the REPO ROOT — that makes cwd = repo root, which is what
-# the app's relative paths (./SPIRIT.sh, ./data/default, scripts/…) expect.
+# Robust to placement: works whether this app.R sits at the repo root OR inside
+# scripts/. shiny-server sets the working directory to the app's folder, which
+# may be either, so we locate the repo root ourselves (the dir that contains
+# both SPIRIT.sh and scripts/app_spirit.R).
 #
-# Sourcing app_spirit.R defines `ui` and `server`. We then build the app object
-# WITHOUT a fixed host/port, so shiny-server assigns the port itself (a hardcoded
-# port would break its proxy). Manual runs still use scripts/app_spirit.R, which
-# keeps its own SPIRIT_PORT launcher.
+# We then:
+#   - tell the app where its static files live (SPIRIT_APP_DIR -> scripts/, holds www/)
+#   - set the working directory to the repo root (so ./SPIRIT.sh, ./data/* resolve)
+#   - build the app WITHOUT a fixed port, so shiny-server controls the port.
 
-# Safety check: we must be at the repo root (where SPIRIT.sh lives).
-if (!file.exists("SPIRIT.sh")) {
-  stop("app.R must run from the repo root (SPIRIT.sh not found in working dir: ",
-       getwd(), "). Point shiny-server's app dir at the repo root.")
+find_repo_root <- function() {
+  for (cand in c(".", "..")) {
+    if (file.exists(file.path(cand, "SPIRIT.sh")) &&
+        file.exists(file.path(cand, "scripts", "app_spirit.R"))) {
+      return(normalizePath(cand))
+    }
+  }
+  stop("app.R: cannot locate repo root (need SPIRIT.sh + scripts/app_spirit.R) ",
+       "from working dir: ", getwd())
 }
 
-source("scripts/app_spirit.R", local = FALSE)
+repo_root <- find_repo_root()
+Sys.setenv(SPIRIT_APP_DIR = file.path(repo_root, "scripts"))
+setwd(repo_root)
+
+source(file.path("scripts", "app_spirit.R"), local = FALSE)
 
 shinyApp(ui = ui, server = server)
