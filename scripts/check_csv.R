@@ -37,6 +37,13 @@ if (grepl("\\.csv$", csv_file_path)) {
 if (!(id %in% colnames(csv_data))) {
   stop(paste0("Column '", id, "' is not present in: ", csv_file_path))
 }
+# Accept "Pvalue" or "PValue" as aliases for "p_value"
+pvalue_aliases <- c("Pvalue", "PValue")
+found_alias <- intersect(pvalue_aliases, colnames(csv_data))
+if (length(found_alias) > 0 && !("p_value" %in% colnames(csv_data))) {
+  colnames(csv_data)[colnames(csv_data) == found_alias[1]] <- "p_value"
+  message("Renamed '", found_alias[1], "' -> 'p_value' in: ", csv_file_path)
+}
 if (!("p_value" %in% colnames(csv_data))) {
   message("Note: no 'p_value' column in ", csv_file_path, " — file will be used without p-values.")
 } else {

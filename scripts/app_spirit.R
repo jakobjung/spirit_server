@@ -340,7 +340,7 @@ ui <- function(request) {
           div(class = "running-overlay",
               div(class = "running-text",
                   div(style = "font-size: clamp(18px, 2.5vw, 28px);",
-                      HTML("SPIRIT pipeline is running (est. time 2&ndash;10 minutes).<br>Please do not refresh")),
+                      HTML("SPIRIT pipeline is running (est. time 2&ndash;10 minutes).")),
                   tags$br(),
                   div(style = "font-size: 15px; font-weight: 400; color: #333; margin-top: 16px;",
                       p("You can safely close this tab and come back later using this link:"),
@@ -409,7 +409,7 @@ ui <- function(request) {
         h3("3. Upload Experiment Tables"),
         p("Upload one or more CSV or Excel files containing experimental evidence.",
           "Each file must include a gene identifier column (matching the GFF) and a column named",
-          tags$code("p_value"), "."),
+          tags$code("p_value"), " (or ", tags$code("Pvalue"), "/", tags$code("PValue"), ", which will be renamed automatically)."),
         p("For pre-loaded organisms, default datasets are available and pre-selected."),
         h3("4. Configure and Run"),
         tags$ul(
@@ -851,10 +851,12 @@ server <- function(input, output, session) {
     }
   })
 
-  # ---- sRNA structure preview (pre-rendered RNAfold PNGs) ----
+  # ---- sRNA structure preview (pre-rendered RNAfold PNGs, or on-the-fly for uploads) ----
   sanitize_srna_name <- function(name) gsub("[^A-Za-z0-9_-]", "_", name)
   resolve_srna_preview <- function(organism, srna) {
-    if (is.null(srna) || !nzchar(srna) || identical(srna, "own")) return(NULL)
+    if (is.null(srna) || !nzchar(srna)) return(NULL)
+    # "own" is handled separately via render_own_srna_structure()
+    if (identical(srna, "own")) return(NULL)
     if (identical(srna, "pint_with_data")) return(list(organism = "sl1344", display = "PinT",            file = "PinT",    key = "PinT"))
     if (identical(srna, "masb"))           return(list(organism = "btheta", display = "MasB (BTnc201)", file = "BTnc201", key = "BTnc201"))
     if (identical(organism, "sl1344") && srna %in% sl1344_srna_names)
@@ -865,6 +867,39 @@ server <- function(input, output, session) {
       return(list(organism = "k12", display = srna, file = sanitize_srna_name(srna), key = srna))
     NULL
   }
+
+  # Render structure on-the-fly for a user-uploaded sRNA FASTA
+  rv_own_structure <- reactiveVal(NULL)  # path to rendered PNG
+  rv_own_srna_name <- reactiveVal(NULL)  # display name
+  observeEvent(input$srna, {
+    req(input$srna)
+    req(identical(input$srnaChoice, "own"))
+    fa_path <- input$srna$datapath
+    lines <- readLines(fa_path, warn = FALSE)
+    hdr <- lines[startsWith(lines, ">")][1]
+    display_name <- if (!is.na(hdr)) sub("^>\\s*", "", hdr) else tools::file_path_sans_ext(input$srna$name)
+    sanitized <- sanitize_srna_name(display_name)
+
+    work <- tempfile(pattern = "own_struct_")
+    dir.create(work, showWarnings = FALSE)
+    fa <- file.path(work, paste0(sanitized, ".fa"))
+    file.copy(fa_path, fa, overwrite = TRUE)
+
+    old <- setwd(work); on.exit(setwd(old), add = TRUE)
+    system2("RNAfold", c("-p"), stdin = basename(fa), stdout = FALSE, stderr = FALSE)
+    out_png <- file.path(work, paste0(sanitized, "_structure.png"))
+    renderer <- file.path(app_dir, "render_srna_structure.py")
+    rc <- system2("python3", c(renderer, paste0(sanitized, "_ss.ps"),
+                                paste0(sanitized, "_dp.ps"), out_png))
+    if (rc == 0 && file.exists(out_png)) {
+      rv_own_structure(out_png)
+      rv_own_srna_name(display_name)
+    } else {
+      rv_own_structure(NULL)
+      rv_own_srna_name(NULL)
+    }
+  })
+
   build_srna_card <- function(info, with_download = FALSE) {
     if (is.null(info)) return(NULL)
     img_url  <- sprintf("spiritres/structures/%s/%s.png", info$organism, info$file)
@@ -884,12 +919,39 @@ server <- function(input, output, session) {
         download_ui
     )
   }
+  build_own_srna_card <- function(png_path, display_name, with_download = FALSE) {
+    if (is.null(png_path) || !file.exists(png_path)) return(NULL)
+    # Serve the on-the-fly PNG via a temp resource path
+    img_dir <- dirname(png_path)
+    prefix  <- paste0("own_struct_", as.integer(Sys.time()))
+    try(shiny::addResourcePath(prefix, img_dir), silent = TRUE)
+    img_url <- paste0(prefix, "/", basename(png_path))
+    download_ui <- if (with_download) {
+      div(style = "display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px;",
+          downloadButton("dl_structure_png", "PNG"),
+          downloadButton("dl_structure_svg", "SVG"),
+          downloadButton("dl_structure_pdf", "PDF"))
+    } else NULL
+    div(class = "srna-card",
+        tags$h4(paste("Predicted structure:", display_name)),
+        div(class = "srna-sub",
+            "MFE structure from RNAfold; nucleotides colored by base-pair probability (viridis)."),
+        tags$img(src = img_url, alt = paste(display_name, "secondary structure")),
+        download_ui
+    )
+  }
   output$srnaStructurePreview <- renderUI({
+    if (identical(input$srnaChoice, "own") && !is.null(rv_own_structure())) {
+      return(build_own_srna_card(rv_own_structure(), rv_own_srna_name(), with_download = FALSE))
+    }
     build_srna_card(resolve_srna_preview(input$organismChoice, input$srnaChoice),
                     with_download = FALSE)
   })
   output$srnaStructurePreviewResults <- renderUI({
     req(rv$done)
+    if (identical(input$srnaChoice, "own") && !is.null(rv_own_structure())) {
+      return(build_own_srna_card(rv_own_structure(), rv_own_srna_name(), with_download = TRUE))
+    }
     build_srna_card(resolve_srna_preview(input$organismChoice, input$srnaChoice),
                     with_download = TRUE)
   })
@@ -922,13 +984,52 @@ server <- function(input, output, session) {
     req(rc == 0, file.exists(out))
     out
   }
+  render_own_structure_to <- function(ext) {
+    req(input$srna)
+    fa_path <- input$srna$datapath
+    lines <- readLines(fa_path, warn = FALSE)
+    hdr <- lines[startsWith(lines, ">")][1]
+    display_name <- if (!is.na(hdr)) sub("^>\\s*", "", hdr) else tools::file_path_sans_ext(input$srna$name)
+    sanitized <- sanitize_srna_name(display_name)
+
+    work <- tempfile(pattern = "own_dl_struct_")
+    dir.create(work, showWarnings = FALSE)
+    fa <- file.path(work, paste0(sanitized, ".fa"))
+    file.copy(fa_path, fa, overwrite = TRUE)
+
+    old <- setwd(work); on.exit(setwd(old), add = TRUE)
+    system2("RNAfold", c("-p"), stdin = basename(fa), stdout = FALSE, stderr = FALSE)
+    out <- file.path(work, paste0(sanitized, "_structure.", ext))
+    renderer <- file.path(app_dir, "render_srna_structure.py")
+    rc <- system2("python3", c(renderer, paste0(sanitized, "_ss.ps"),
+                                paste0(sanitized, "_dp.ps"), out))
+    req(rc == 0, file.exists(out))
+    out
+  }
   mk_structure_handler <- function(ext) {
     downloadHandler(
       filename = function() {
+        if (identical(input$srnaChoice, "own") && !is.null(input$srna)) {
+          lines <- readLines(input$srna$datapath, warn = FALSE)
+          hdr <- lines[startsWith(lines, ">")][1]
+          nm <- if (!is.na(hdr)) sanitize_srna_name(sub("^>\\s*", "", hdr)) else "custom_srna"
+          return(paste0(nm, "_structure.", ext))
+        }
         info <- resolve_srna_preview(input$organismChoice, input$srnaChoice)
         if (is.null(info)) paste0("structure.", ext) else paste0(info$file, "_structure.", ext)
       },
       content = function(file) {
+        # Own sRNA: use on-the-fly rendered structure
+        if (identical(input$srnaChoice, "own") && !is.null(input$srna)) {
+          if (identical(ext, "png") && !is.null(rv_own_structure()) && file.exists(rv_own_structure())) {
+            file.copy(rv_own_structure(), file, overwrite = TRUE)
+          } else {
+            out <- render_own_structure_to(ext)
+            file.copy(out, file, overwrite = TRUE)
+          }
+          return(invisible(NULL))
+        }
+        # Pre-saved sRNA
         info <- resolve_srna_preview(input$organismChoice, input$srnaChoice)
         req(!is.null(info))
         if (identical(ext, "png")) {
